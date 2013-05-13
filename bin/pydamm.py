@@ -15,6 +15,7 @@ import sys
 
 sys.path.append('/home/krm/Documents/Programs/Python/Pyspectr')
 from Pyspectr import hisfile as hisfile
+from Pyspectr.decay_fitter import DecayFitter as DecayFitter
 
 class Experiment:
 
@@ -48,36 +49,7 @@ class Experiment:
         self.hisfile = hisfile.HisFile(file_name)
 
 
-    def rebin(histogram, bin_size, add=True, zeros=True):
-        """Bin histogram. If add is True, the bins are sum of bins,
-        otherwise the mean number of counts is used. 
-        If zeros is true, in case the histogram must be extended
-        (len(histogram) % bin_size != 0) is extended with zeros,
-        otherwise an extrapolation of last two counts is used.
-
-        Example
-        y1 = binned(y1, bin1y)
-        x1 = binned(x1, bin1y, False, False)
-
-        """
-        if len(histogram) % bin_size != 0:
-            if zeros:
-                addh = numpy.zeros((bin_size - len(histogram) % bin_size))
-                histogram = numpy.concatenate((histogram, addh))
-            else:
-                d = histogram[-1] - histogram[-2]
-                l = histogram[-1]
-                n = bin_size - len(histogram) % bin_size
-                addh = numpy.arange(l, l + n * d, d)
-                histogram = numpy.concatenate((histogram, addh))
-
-        if add:
-            return histogram.reshape((-1, bin_size)).sum(axis=1)
-        else:
-            return histogram.reshape((-1, bin_size)).mean(axis=1)
-
-
-    def d(self, his_id, norm=1):
+    def d(self, his_id, norm=1, clear=True, plot=True):
         """Plot histogram in current window/ax """
 
         if self.hisfile is None:
@@ -87,23 +59,26 @@ class Experiment:
         title = self.hisfile.histograms[his_id]['title']
         data = self.hisfile.load_histogram(his_id)
         if len(data) == 2:
+            if clear and plot:
+                self.clear()
             label = ('{}: {} - {}'.
                     format(self.file_name.strip('.his').strip('/'),
                            his_id, title))
             if norm != 1:
                 label += 'x{: .3f}'.format(1 / norm)
-            plt.plot(data[0], data[1] / norm, ls='steps-mid', label=label)
-            plt.legend(loc=0, fontsize='small')
+            if plot:
+                plt.plot(data[0], data[1] / norm, ls='steps-mid', label=label)
+                plt.legend(loc=0, fontsize='small')
             self.current['id'] = his_id
             self.current['x'] = data[0]
-            self.current['y'] = data[1]
+            self.current['y'] = data[1]/norm
             self.current['z'] = None
-            return (data[0], data[1])
+            return (data[0], data[1]/norm)
         elif len(data) == 3:
             print('{} is not a 1D histogram'.format(his_id))
 
     
-    def dd(self, his_id, rx=None, ry=None):
+    def dd(self, his_id, rx=None, ry=None, logz=False, clear=True, plot=True):
         """Plot 2D histogram in current window/ax,
         rx is x range, ry is y range 
         
@@ -119,7 +94,8 @@ class Experiment:
         if len(data) == 2:
             print('{} is not a 2D histogram'.format(his_id))
         elif len(data) == 3:
-            self.clear()
+            if clear and plot:
+                self.clear()
 
             x = data[0]
             y = data[1]
@@ -169,14 +145,17 @@ class Experiment:
                 w = numpy.reshape(w, (nx, binx, ny, biny)).mean(3).mean(1)
             w = numpy.transpose(w)
 
-            plt.title(title)
-            #CS = plt.contourf(x, y, numpy.transpose(w),  
-            #                  locator=ticker.MaxNLocator(nbins=100))
-            CS = plt.pcolormesh(x, y, w,
-                                cmap=cm.RdYlGn_r)
-            plt.xlim(rx)
-            plt.ylim(ry)
-            plt.colorbar()
+            if plot:
+                z = w
+                if logz:
+                    z = numpy.ma.masked_where(w <= 0, numpy.log10(w))
+                    title += ' (log10)'
+                plt.title(title)
+                CS = plt.pcolormesh(x, y, z,
+                                    cmap=cm.RdYlGn_r)
+                plt.xlim(rx)
+                plt.ylim(ry)
+                plt.colorbar()
             self.current['id'] = his_id
             self.current['x'] = x
             self.current['y'] = y
@@ -184,7 +163,8 @@ class Experiment:
             return (x, y, w)
 
 
-    def gx(self, his_id, rx=None, ry=None, norm=1):
+    def gx(self, his_id, rx=None, ry=None, bg=None, norm=1,
+           clear=True, plot=True):
         """Make projection on Y axis of 2D histogram with gate
         set on X (rx) and possibly on Y (ry)
         
@@ -205,28 +185,38 @@ class Experiment:
         if len(data) == 2:
             print('{} is not a 2D histogram'.format(his_id))
         elif len(data) == 3:
+            if clear and plot:
+                self.clear()
             x = data[0]
             y = data[1]
             w = data[2]
-            if ry is not None:
-                y = y[ry[0]:ry[1]+1]
-                w = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=0)
-            else:
-                w = w[rx[0]:rx[1]+1, :].sum(axis=0)
+            if ry is None:
+                ry = [0, len(y)-2]
+            y = y[ry[0]:ry[1]+1]
+            g = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=0)
+            if bg is not None:
+                if (bg[1] - bg[0]) != (rx[1] - rx[0]):
+                    print('#Warning: background and gate of different widths')
+                g = g - w[bg[0]:bg[1]+1, ry[0]:ry[1]+1].sum(axis=0)
             label = 'gx({},{}) {}: {}'.format(rx[0], rx[1], his_id,
                                     self.hisfile.histograms[his_id]['title'])
-            plt.plot(y, w/norm, ls='steps-mid', label=label)
-            plt.legend(loc=0, fontsize='small')
+            if bg is not None:
+                label += ' bg ({}, {})'.format(bg[0], bg[1])
+            if plot:
+                plt.plot(y, g/norm, ls='steps-mid', label=label)
+                plt.legend(loc=0, fontsize='small')
             self.current['id'] = his_id
             self.current['x'] = y
-            self.current['y'] = w
+            self.current['y'] = g/norm
             self.current['z'] = None
-            return (y, w)
+            return (y, g/norm)
 
 
-    def gy(self, his_id, ry=None, rx=None, norm=1):
+    def gy(self, his_id, ry=None, rx=None, bg=None, norm=1,
+           clear=True, plot=True):
         """Make projection on X axis of 2D histogram with gate
-        set on Y (ry) and possibly on X (rx)
+        set on Y (ry) and possibly on X (rx), the bg gate selects a 
+        background region to be subtracted from data
         
         """
         if self.hisfile is None:
@@ -245,23 +235,32 @@ class Experiment:
         if len(data) == 2:
             print('{} is not a 2D histogram'.format(his_id))
         elif len(data) == 3:
+            if clear:
+                self.clear()
             x = data[0]
             y = data[1]
             w = data[2]
-            if rx is not None:
-                x = x[rx[0]:rx[1]+1]
-                w = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=1)
-            else:
-                w = w[:, ry[0]:ry[1]+1].sum(axis=1)
+            if rx is None:
+                rx = [0, len(x)-2]
+            x = x[rx[0]:rx[1]+1]
+            g = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=1)
+            if bg is not None:
+                if (bg[1] - bg[0]) != (ry[1] - ry[0]):
+                    print('#Warning: background and gate of different widths')
+                g = g - w[rx[0]:rx[1]+1, bg[0]:bg[1]+1].sum(axis=1)
+
             label = 'gy({},{}) {}: {}'.format(ry[0], ry[1], his_id,
                                     self.hisfile.histograms[his_id]['title'])
-            plt.plot(x, w/norm, ls='steps-mid', label=label)
-            plt.legend(loc=0, fontsize='small')
+            if bg is not None:
+                label += ' bg ({}, {})'.format(bg[0], bg[1])
+            if plot:
+                plt.plot(x, g/norm, ls='steps-mid', label=label)
+                plt.legend(loc=0, fontsize='small')
             self.current['id'] = his_id
             self.current['x'] = x
-            self.current['y'] = w
+            self.current['y'] = g/norm
             self.current['z'] = None
-            return (x, w)
+            return (x, g/norm)
 
 
     def clear(self):
@@ -320,9 +319,57 @@ class Experiment:
                 print('Histogram id = {} not found'.format(his_id))
 
 
+    def rebin(self, bin_size, clear=True, plot=True):
+        """Re-bin the current histogram"""
+
+        if (self.current['x'] is not None and
+            self.current['y'] is not None):
+            x = self.rebin_histogram(self.current['x'], bin_size,
+                                     False, False)
+            y = self.rebin_histogram(self.current['y'], bin_size)
+            if plot:
+                xlim = plt.xlim()
+                if clear:
+                    self.clear()
+                plt.plot(x, y, ls='steps-mid')
+                plt.xlim(xlim)
+            self.current['x'] = x
+            self.current['y'] = y
+            return (x, y)
+
+
+    def rebin_histogram(self, histogram, bin_size, add=True, zeros=True):
+        """Bin histogram. If add is True, the bins are sum of bins,
+        otherwise the mean number of counts is used. 
+        If zeros is true, in case the histogram must be extended
+        (len(histogram) % bin_size != 0) is extended with zeros,
+        otherwise an extrapolation of last two counts is used.
+
+        Example
+        y1 = binned(y1, bin1y)
+        x1 = binned(x1, bin1y, False, False)
+
+        """
+        if len(histogram) % bin_size != 0:
+            if zeros:
+                addh = numpy.zeros((bin_size - len(histogram) % bin_size))
+                histogram = numpy.concatenate((histogram, addh))
+            else:
+                d = histogram[-1] - histogram[-2]
+                l = histogram[-1]
+                n = bin_size - len(histogram) % bin_size
+                addh = numpy.arange(l, l + n * d, d)
+                histogram = numpy.concatenate((histogram, addh))
+
+        if add:
+            return histogram.reshape((-1, bin_size)).sum(axis=1)
+        else:
+            return histogram.reshape((-1, bin_size)).mean(axis=1)
+
+
     def mark(self, x_mark):
         """Put vertical line on plot to mark the peak (or guide the eye)"""
-        plt.axvline(x_mark, ls='--', c='#aaaaaa')
+        plt.axvline(x_mark, ls='--', c='black')
 
 
     def set_eff_params(self, pars):
@@ -331,6 +378,145 @@ class Experiment:
         eff = exp(a0 + a1 * log(E) + a2 * log(E)**2 + ...)
         """
         self.eff_pars = pars
+
+
+    def gamma_gamma_spectra(self, gg_id, gate, clear=True):
+        """ Plots gamma-gamma gate broken into 4 subplots (0-600, 600-1200,
+        1200-2000, 2000-4000. 
+        gg_id is 2D histogram id
+        gate is in form ((x1, y1), (x2, y2)) where i=1 is gate on line, i=2
+        is gate on background
+
+        """
+        self.clear()
+        x, y = self.gy(gg_id, gate[0], bg=gate[1])
+        ranges = ((0, 600), (600, 1200), (1200, 2000), (2000, 4000))
+        for i, r in enumerate(ranges):
+            ax = plt.subplot(4, 1, i + 1)
+            ax.plot(x[r[0]:r[1]], y[r[0]:r[1]], ls='steps-mid')
+            ax.set_xlim(r)
+        ax.set_xlabel('E (keV)')
+        plt.tight_layout()
+
+
+    def annotate(self, x, text, shiftx=0, shifty=0):
+        """ Add arrow with line energy and possible short text"""
+        length = 0.07 * (plt.ylim()[1] - plt.ylim()[0])
+        y = self.current['y'][x]
+        plt.annotate(text, xy=(x, y),
+                    xytext=(x + shiftx, y + length + shifty),
+                    rotation=90.,
+                    xycoords='data',
+                    fontsize=9,
+                    verticalalignment='bottom',
+                    horizontalalignment='center',
+                    arrowprops=dict(width=1, facecolor='black', headwidth=5,
+                                    shrink=0.1))
+
+    def load_gates(self, filename):
+        """Load gamma gates from text file, the format is:
+        # Comment line
+        Name    x0  x1  bg0 bg1
+        Example:
+        110     111 113 115 117
+
+        """
+        gatefile = open(filename, 'r')
+        lineN = 0
+        gates = {}
+        for line in gatefile:
+            lineN += 1
+            line = line.strip()
+            if line.startswith('#'):
+                continue
+            items = line.split()
+            if len(items) < 5:
+                print('Warning: line {} bad data'.format(lineN))
+                continue
+            gates[int(items[0])] = ((int(items[1]), int(items[2])),
+                                   (int(items[3]), int(items[4])))
+        return gates
+
+    def gamma_time_profile(self, his_id, gate, t_bin=1, rt=None, clear=True):
+        """Plots gamma time profile, gate should be given in format:
+            ((x0, x1, (bg0, bg1))
+            
+            the rt is gate in time in (t0, t1) format"""
+
+        xg, yg = self.gx(his_id, rx=gate[0], ry=rt, plot=False)
+        xb, yb = self.gx(his_id, rx=gate[1], ry=rt, plot=False)
+        if t_bin > 1:
+            xg = self.rebin_histogram(xg, t_bin,
+                                     False, False)
+            yg = self.rebin_histogram(yg, t_bin)
+            yb = self.rebin_histogram(yb, t_bin)
+        dyg = numpy.sqrt(yg)
+        dyb = numpy.sqrt(yb)
+        y = yg - yb
+        dy = numpy.sqrt(dyg**2 + dyb**2)
+        if clear:
+            self.clear()
+        plt.errorbar(xg, y, yerr=dy, ls='None', marker='o')
+        plt.axhline(0, ls='-', color='black')
+
+
+    def fit_gamma_decay(self, his_id, gate, cycle, 
+                        t_bin=1, rt=None,
+                        model='grow_decay',
+                        pars=None,
+                        clear=True):
+        """Fits gamma decay time profile,
+        his_id is E-time histogram id
+        gate should be given in format:
+            ((x0, x1, (bg0, bg1))
+        cycle is list of beam start, beam stop, cycle end, e.g.
+        (0, 100, 300)
+
+        t_bin is a binning parameter
+            
+        rt is a gate in time in (t0, t1) format
+
+        model is model used for fit (see decay_fitter)
+
+        pars is a list of dictionaries (one dict per each parameter)
+            
+        """
+        if pars is None:
+            T0 = {'name' : 'T0', 'value' : cycle[0], 'vary' : False}
+            T1 = {'name' : 'T1', 'value' : cycle[1], 'vary' : False}
+            T2 = {'name' : 'T2', 'value' : cycle[2], 'vary' : False}
+            P1 = {'name' : 'P1', 'value' : 100.0}
+            t1 = {'name' : 't1', 'value' : 100.0}
+            parameters = [T0, T1, T2, P1, t1]
+            if model == 'grow_decay2':
+                P2 = {'name' : 'P2', 'value' : 1000.0}
+                t2 = {'name' : 't2', 'value' : 1000.0}
+                parameters.append(P2)
+                parameters.append(t2)
+        else:
+            parameters = pars
+
+        df = DecayFitter()
+
+        xg, yg = self.gx(his_id, rx=gate[0], ry=rt, plot=False)
+        xb, yb = self.gx(his_id, rx=gate[1], ry=rt, plot=False)
+        if t_bin > 1:
+            xg = self.rebin_histogram(xg, t_bin,
+                                     False, False)
+            yg = self.rebin_histogram(yg, t_bin)
+            yb = self.rebin_histogram(yb, t_bin)
+        dyg = numpy.sqrt(yg)
+        dyb = numpy.sqrt(yb)
+        y = yg - yb
+        dy = numpy.sqrt(dyg**2 + dyb**2)
+
+        t, n = df.fit(xg, y, dy, model, parameters)
+
+        if clear:
+            self.clear()
+        plt.errorbar(xg, y, yerr=dy, ls='None', marker='o')
+        plt.plot(t, n, ls='-', color='red')
+        plt.axhline(0, ls='-', color='black')
 
 
 if __name__ == "__main__":

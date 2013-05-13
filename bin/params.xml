@@ -1,0 +1,34 @@
+<Config>
+    <file scale="1.00" name="test.txt">
+        <model name="grow_decay">
+            <param name='T0' value='0.0' vary='False'/>
+            <param name='T1' value='1.0' vary='False'/>
+            <param name='T2' value='2.0' vary='False'/>
+
+            <param name='P1' value='20.0'/>
+            <param name='t1' value='0.209'/>
+        </model>
+        <model name="grow_decay2">
+            <param name='T0' value='0.0' vary='False'/>
+            <param name='T1' value='1.0' vary='False'/>
+            <param name='T2' value='2.0' vary='False'/>
+
+            <param name='P1' value='1000.0'/>
+            <param name='P2' value='1000.0'/>
+
+            <param name='t1' value='0.05'/>
+            <param name='t2' value='0.50'/>
+        </model>
+        <model name="grow_decay_isomer">
+            <param name='T0' value='0.0' vary='False'/>
+            <param name='T1' value='1.0' vary='False'/>
+            <param name='T2' value='2.0' vary='False'/>
+
+            <param name='P1' value='1000.0'/>
+            <param name='P2' value='1000.0'/>
+
+            <param name='t1' value='0.05'/>
+            <param name='t2' value='0.50'/>
+        </model>
+    </file>
+</Config>

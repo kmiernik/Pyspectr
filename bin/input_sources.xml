@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+<config>
+
+    <data_file name="HIS/Zn65_pulser-2">
+        <spectrum id="113-114,116-120" min="3370" max="3600" line="1115.539" model="gauss_skew"/>
+        <spectrum id="115" min="3370" max="3600" line="1115.539" model="gauss_l"/>
+    </data_file>
+
+    <data_file name="HIS/Cs137_tape_pulser-2">
+        <spectrum id="113-120" min="2000" max="2140" line="661.657" model="gauss_l"/>
+    </data_file>
+
+    <data_file name="HIS/Ba133_pulser-2">
+        <spectrum id="113" min="130" max="180" line="53.1622" model="gauss_l"/>
+        <spectrum id="113" min="220" max="280" line="80" model="gauss_doublet"/>
+        <spectrum id="113" min="840" max="890" line="276.3989" model="gauss_l"/>
+        <spectrum id="113" min="920" max="957" line="302.8508" model="gauss_l"/>
+        <spectrum id="113" min="1090" max="1140" line="356.0129" model="gauss_l"/>
+        <spectrum id="113" min="1180" max="1216" line="383.8485" model="gauss_doublet"/>
+
+        <spectrum id="114" min="140" max="175" line="53.1622" model="gauss_l"/>
+        <spectrum id="114" min="220" max="260" line="80" model="gauss_doublet"/>
+        <spectrum id="114" min="820" max="870" line="276.3989" model="gauss_l"/>
+        <spectrum id="114" min="900" max="950" line="302.8508" model="gauss_l"/>
+        <spectrum id="114" min="1060" max="1110" line="356.0129" model="gauss_l"/>
+        <spectrum id="114" min="1140" max="1190" line="383.8485" model="gauss_doublet"/>
+
+        <spectrum id="115" min="140" max="190" line="53.1622" model="gauss_l"/>
+        <spectrum id="115" min="220" max="280" line="80" model="gauss_doublet"/>
+        <spectrum id="115" min="860" max="900" line="276.3989" model="gauss"/>
+        <spectrum id="115" min="940" max="975" line="302.8508" model="gauss"/>
+        <spectrum id="115" min="1110" max="1160" line="356.0129" model="gauss_l"/>
+        <spectrum id="115" min="1200" max="1242" line="383.8485" model="gauss_doublet"/>
+
+        <spectrum id="116,117,119" min="140" max="180" line="53.1622" model="gauss_l"/>
+        <spectrum id="116,117,119" min="220" max="280" line="80" model="gauss_doublet"/>
+        <spectrum id="116" min="840" max="900" line="276.3989" model="gauss_l"/>
+        <spectrum id="117" min="840" max="900" line="276.3989" model="gauss"/>
+        <spectrum id="119" min="840" max="900" line="276.3989" model="gauss"/>
+        <spectrum id="116,117" min="920" max="970" line="302.8508" model="gauss_l"/>
+        <spectrum id="119" min="920" max="970" line="302.8508" model="gauss"/>
+        <spectrum id="116,117,119" min="1080" max="1140" line="356.0129" model="gauss_l"/>
+        <spectrum id="116,117,119" min="1170" max="1223" line="383.8485" model="gauss_doublet"/>
+
+        <spectrum id="118,120" min="140" max="180" line="53.1622" model="gauss_l"/>
+        <spectrum id="118,120" min="220" max="280" line="80" model="gauss_doublet"/>
+        <spectrum id="118,120" min="830" max="880" line="276.3989" model="gauss_l"/>
+        <spectrum id="118" min="910" max="960" line="302.8508" model="gauss"/>
+        <spectrum id="120" min="910" max="960" line="302.8508" model="gauss_l"/>
+        <spectrum id="118,120" min="1060" max="1140" line="356.0129" model="gauss_l"/>
+        <spectrum id="118,120" min="1150" max="1210" line="383.8485" model="gauss_doublet"/>
+    </data_file>
+
+    <data_file name="HIS/Co56_Apr10">
+        <spectrum id="113" min="2620" max="2680" line="846.77" model="gauss_l"/>
+        <spectrum id="113" min="3200" max="3300" line="1037.843" model="gauss_l"/>
+        <spectrum id="113" min="3830" max="3900" line="1238.288" model="gauss_l"/>
+        <spectrum id="113" min="5500" max="5600" line="1771.357" model="gauss_l"/>
+        <spectrum id="113" min="8050" max="8170" line="2598.5" model="gauss_l"/>
+        <spectrum id="113" min="9900" max="10100" line="3202.029" model="gauss_l"/>
+        <spectrum id="113" min="10100" max="10220" line="3253.503" model="gauss_l"/>
+
+        <spectrum id="114" min="2550" max="2640" line="846.77" model="gauss_l"/>
+        <spectrum id="114" min="3100" max="3250" line="1037.843" model="gauss_l"/>
+        <spectrum id="114" min="3750" max="3850" line="1238.288" model="gauss_l"/>
+        <spectrum id="114" min="5350" max="5500" line="1771.357" model="gauss_l"/>
+        <spectrum id="114" min="7900" max="7990" line="2598.5" model="gauss_l"/>
+        <spectrum id="114" min="9700" max="9850" line="3202.029" model="gauss_l"/>
+        <spectrum id="114" min="9850" max="10000" line="3253.503" model="gauss_l"/>
+
+        <spectrum id="115" min="2680" max="2750" line="846.77" model="gauss_l"/>
+        <spectrum id="115" min="3250" max="3400" line="1037.843" model="gauss_l"/>
+        <spectrum id="115" min="3900" max="4000" line="1238.288" model="gauss_l"/>
+        <spectrum id="115" min="5600" max="5700" line="1771.357" model="gauss_l"/>
+        <spectrum id="115" min="8200" max="8350" line="2598.5" model="gauss_l"/>
+        <spectrum id="115" min="10100" max="10300" line="3202.029" model="gauss_l"/>
+        <spectrum id="115" min="10300" max="10430" line="3253.503" model="gauss_l"/>
+
+        <spectrum id="116,117,119" min="2620" max="2680" line="846.77" model="gauss_l"/>
+        <spectrum id="116,117" min="3200" max="3300" line="1037.843" model="gauss_l"/>
+        <spectrum id="119" min="3200" max="3300" line="1037.843" model="gauss"/>
+        <spectrum id="116,117,119" min="3850" max="3920" line="1238.288" model="gauss_l"/>
+        <spectrum id="116,117" min="5500" max="5600" line="1771.357" model="gauss_l"/>
+        <spectrum id="119" min="5500" max="5600" line="1771.357" model="gauss"/>
+        <spectrum id="116,117,119" min="8050" max="8190" line="2598.5" model="gauss_l"/>
+        <spectrum id="116,117,119" min="9900" max="10100" line="3202.029" model="gauss_l"/>
+        <spectrum id="116,117,119" min="10100" max="10250" line="3253.503" model="gauss_l"/>
+
+        <spectrum id="118,120" min="2600" max="2650" line="846.77" model="gauss_l"/>
+        <spectrum id="118,120" min="3150" max="3250" line="1037.843" model="gauss_l"/>
+        <spectrum id="118,120" min="3800" max="3900" line="1238.288" model="gauss_l"/>
+        <spectrum id="118,120" min="5450" max="5550" line="1771.357" model="gauss_l"/>
+        <spectrum id="118,120" min="8000" max="8100" line="2598.5" model="gauss_l"/>
+        <spectrum id="118,120" min="9800" max="10000" line="3202.029" model="gauss_l"/>
+        <spectrum id="118,120" min="10000" max="10135" line="3253.503" model="gauss_l"/>
+    </data_file>
+
+    <data_file name="HIS/Co60_tape_pulser-2">
+        <spectrum id="113-120" min="3550" max="3790" line="1173.228" model="gauss_l"/>
+        <spectrum id="113-120" min="4050" max="4300" line="1332.492" model="gauss_l"/>
+    </data_file>
+
+    <data_file name="HIS/Mn54_pulser-2">
+        <spectrum id="113-120" min="2500" max="2700" line="834.848" model="gauss_skew"/>
+    </data_file>
+
+</config>

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<config>
+    <!--
+    <data_file name="some_file">
+        <spectrum id="2500,2510" min="50" max="150" baseline="linear">
+            <peak E="115" model="gauss"/>
+            <peak E="130" model="gauss_l"/>
+        </spectrum>
+        <spectrum id="2700,2710" min="50" max="150" baseline="linear">
+            <peak E="115" model="gauss"/>
+            <peak E="130" model="gauss_l"/>
+        </spectrum>
+    </data_file>
+    -->
+
+    <data_file name="test.txt">
+        <spectrum id="" min="1250" max="1450" baseline="linear">
+            <peak E="1291" model="gauss"/>
+            <peak E="1329" model="gauss"/>
+            <peak E="1375" model="gauss"/>
+            <peak E="1388" model="gauss"/>
+            <peak E="1435" model="gauss"/>
+        </spectrum>
+        <spectrum id="" min="50" max="100" baseline="quadratic">
+            <peak E="70" />
+            <peak E="75" model="gauss"/>
+            <peak E="85" model="gauss"/>
+        </spectrum>
+    </data_file>
+</config>

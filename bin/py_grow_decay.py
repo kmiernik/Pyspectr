@@ -9,7 +9,6 @@ from lmfit import minimize, Parameters, report_errors
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-sys.path.append('../Pyspectr')
 
 def load(filename, units=1.0):
     data_x = []
@@ -300,10 +299,10 @@ if __name__ == '__main__':
             ax1.set_xlim(0, params['T2'].value)
             ax1.errorbar(data_x, data_y, data_dy, fmt='o', markersize=4,
                         markerfacecolor='none', markeredgecolor='blue',
-                        label="Data '{}'".format(inputfile.getAttribute('name')))
+                        label="Data '{}'".format(inputfile.getAttribute('name').replace('_', '\_')))
             ax1.plot(time, fitfunc(result.params, time), linewidth=2,
                     color='red',
-                    label=r"Fit '{}' $\chi^2/N$ = {: .2f}".format(model.getAttribute('name'), result.redchi))
+                    label=r"Fit '{}' $\chi^2 / N$ = {: .2f}".format(model.getAttribute('name').replace('_', '-'), result.redchi))
             ax1.legend(loc='best', fontsize='small')
 
             ax2 = plt.subplot(2, 1, 2)
