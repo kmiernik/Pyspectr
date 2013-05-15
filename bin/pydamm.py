@@ -510,13 +510,14 @@ class Experiment:
         y = yg - yb
         dy = numpy.sqrt(dyg**2 + dyb**2)
 
-        t, n = df.fit(xg, y, dy, model, parameters)
+        t, n, parameters = df.fit(xg, y, dy, model, parameters)
 
         if clear:
             self.clear()
         plt.errorbar(xg, y, yerr=dy, ls='None', marker='o')
         plt.plot(t, n, ls='-', color='red')
         plt.axhline(0, ls='-', color='black')
+        return (t, n, parameters)
 
 
 if __name__ == "__main__":

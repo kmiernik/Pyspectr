@@ -244,5 +244,5 @@ class DecayFitter:
         time = numpy.arange(params['T0'].value, params['T2'].value, 
                             (params['T2'].value) / 200)
         counts = self.fitfunc(result.params, time)
-        return (time, counts)
+        return (time, counts, result.params)
 
