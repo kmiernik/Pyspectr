@@ -19,7 +19,6 @@ import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 from lmfit import minimize, Parameters, report_errors
 
-sys.path.append('/home/krm/Documents/Programs/Python/Pyspectr')
 from Pyspectr.hisfile import HisFile as HisFile
 from Pyspectr.peak_fitter import PeakFitter as PeakFitter
 from Pyspectr.exceptions import GeneralError as GeneralError
@@ -69,10 +68,16 @@ class SpectrumParser:
                 data_x = self.data_file[x_min:x_max, 0]
                 data_y = self.data_file[x_min:x_max, 1]
                 data_dy = self.data_file[x_min:x_max, 2]
+                for iy, y in enumerate(data_dy):
+                    if y <= 0:
+                        data_dy[iy] = 1.0
+
             elif self.file_type == 'his':
-                data_x, data_y = self.data_file.load_histogram(spectrum_id)
-                data_x = data_x[x_min:x_max]
-                data_y = data_y[x_min:x_max]
+                data = self.data_file.load_histogram(spectrum_id)
+                if data[0] != 1:
+                    raise GeneralError('Only 1D histograms are supported')
+                data_x = data[1][x_min:x_max]
+                data_y = data[3][x_min:x_max]
                 data_dy = []
                 for y in data_y:
                     dy = numpy.sqrt(y) if y > 0 else 1.0
@@ -81,7 +86,25 @@ class SpectrumParser:
 
             if smin is not None and smax is not None:
                 PF.restrict_width(float(smin), float(smax))
-            PF.fit(data_x, data_y, data_dy, show, pause)
+            fit_result = PF.fit(data_x, data_y, data_dy, show, pause)
+            if show == 'plot' or show == 'svg':
+                plt.clf()
+                plt.xlabel('Channel')
+                plt.ylabel('Counts')
+                plt.plot(data_x, data_y, linestyle='steps-mid')
+                plt.plot(data_x, fit_result['baseline'], linestyle='--')
+                plt.plot(fit_result['x_axis'], fit_result['fit'], linewidth=1.0)
+                if show == 'svg':
+                    svg_name = 'fit_{0}_{1}-{2}'.format(self.plot_name,
+                                                int(data_x[0]), int(data_x[-1]))
+                    svg_name = svg_name.replace('.', '').replace('/', '') + '.svg'
+                    plt.savefig(svg_name)
+                else:
+                    plt.draw()
+                    time.sleep(pause)
+            elif show == 'quiet':
+                pass
+
             for i, peak in enumerate(peaks):
                 if peak.get('ignore') == 'True':
                     continue
@@ -112,6 +135,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    plt.ion()
+    plt.show()
     show = 'plot'
     if args.svg:
         show = 'svg'
@@ -126,8 +151,6 @@ if __name__ == "__main__":
                args.config[0], err))
         exit()
 
-    plt.ion()
-    plt.show()
     root = tree.getroot()
     for data_file in root.findall('data_file'):
         SP = SpectrumParser(data_file.get('name'))

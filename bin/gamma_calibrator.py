@@ -29,9 +29,9 @@ from lmfit import minimize, Parameters, report_errors
 import xml.etree.ElementTree as ET
 import matplotlib.pyplot as plt
 
-import peak_fitter
-import hisfile
-from exceptions import GeneralError
+import Pyspectr.peak_fitter as peak_fitter
+import Pyspectr.hisfile as hisfile 
+from Pyspectr.exceptions import GeneralError
 
 
 class Parser:
@@ -122,8 +122,11 @@ class Parser:
                 for line in lines:
                     xmin = line['min']
                     xmax = line['max']
-                    data_x, data_y = data[0][xmin:xmax], data[1][xmin:xmax]
-                    data_dy = numpy.sqrt(numpy.abs(data[1][xmin:xmax]))
+                    if data[0] != 1:
+                        raise GeneralError('Only 1D histograms are suitable' +
+                                'for this calibration')
+                    data_x, data_y = data[1][xmin:xmax], data[3][xmin:xmax]
+                    data_dy = numpy.sqrt(numpy.abs(data[3][xmin:xmax]))
 
                     # 0 counts have error 1 (poisson!)
                     for i, dy in enumerate(data_dy):

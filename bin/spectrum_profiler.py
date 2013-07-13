@@ -15,7 +15,7 @@ import numpy
 from lmfit import minimize, Parameters, report_errors
 import matplotlib.pyplot as plt
 
-import hisfile
+import Pyspectr.hisfile as hisfile
 
 class GeneralError(Exception):
     """General error class
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     T2 = 300
 
     his = hisfile.HisFile(args.in_file)
-    xaxis, yaxis, data = his.load_histogram(hisId)
+    dim, xaxis, yaxis, data = his.load_histogram(hisId)
     #data = data.transpose()
 
     fitfunc = decay

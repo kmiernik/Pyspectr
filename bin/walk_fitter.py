@@ -15,8 +15,7 @@ import numpy
 import matplotlib.pyplot as pyplot
 from lmfit import minimize, Parameters, report_errors
 
-sys.path.append('/home/krm/Documents/Programs/Python/Pyspectr')
-from Pyspectr import hisfile as hisfile
+import Pyspectr.hisfile as hisfile
 from Pyspectr.exceptions import GeneralError as GeneralError
 
 def fit_funcA(params, data_x):
@@ -98,7 +97,10 @@ if __name__ == "__main__":
         print(err.msg)
         exit()
 
-    x_axis, y_axis, data = his.load_histogram(args.his[0])
+    dim, x_axis, y_axis, data = his.load_histogram(args.his[0])
+    if dim != 2:
+        print('Data must be a 2D histogram!')
+        exit()
 
     # Rebinng histogram using reshape trick
     x_axis = x_axis.reshape((x_axis.shape[0]//binx, binx)).mean(1)

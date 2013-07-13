@@ -1,47 +1,177 @@
-#!/usr/bin/python3
-"""
-Krzysztof Miernik 2012
+#!/usr/bin/env python3
+"""K. Miernik 2012
 k.a.miernik@gmail.com
+Distributed under GNU General Public Licence v3
 
-Damm-like analysis program for his/drr experiment spectra files.
+This module is inteded to be loaded in an interactive interpreter session.
+The ipython is strongly recommended. The pydamm is a python replacement for
+DAMM programm.
 
 """
 
-import numpy
 import math
-import matplotlib.pyplot as plt
-from matplotlib import cm, ticker
+import numpy
 import sys
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
-sys.path.append('/home/krm/Documents/Programs/Python/Pyspectr')
+from collections import deque
+
 from Pyspectr import hisfile as hisfile
+from Pyspectr import histogram as histogram
+from Pyspectr import plotter as plotter
+from Pyspectr.exceptions import GeneralError as GeneralError
 from Pyspectr.decay_fitter import DecayFitter as DecayFitter
+from Pyspectr.peak_fitter import PeakFitter as PeakFitter
+
+
+class Plot:
+    """
+    The Plot class holds a set of data and parameters that are needed to
+    display the data. 
+
+    The bin_size attribute defines how much the histogram should be binned
+    The norm attribute defines the normalization parameter used
+
+    These parameters are altering the display only, the histogram 
+    always keeps the original data.
+
+    If the binned or normalized histogram data are needed for direct
+    access, use functions avaible in the Histogram class.
+
+    The mode defines the way the data are presented,
+    'histogram' is displayed with steps-mid
+    'function' with continuus line
+    'errorbar' with yerrorbars
+    'map' for 2D histograms
+
+    """
+
+    def __init__(self, histogram, mode, active):
+        self.histogram = histogram
+        self.mode = mode
+        self.active = active
+
+        self._bin_size = 1
+        self._norm = 1
+
+
+    @property
+    def bin_size(self):
+        return self._bin_size
+
+
+    @bin_size.setter
+    def bin_size(self, bs):
+        if self.histogram.dim != 1:
+            raise GeneralError('Currently only 1D histograms can be binned')
+
+        if isinstance(bs, int):
+            # You can only bin further the histogram, there is no
+            # way back (load original data again)
+            if bs > self._bin_size:
+                self._bin_size = bs
+                self.histogram = self.histogram.rebin1d(bs)
+            elif bs <= self._bin_size:
+                pass
+            else:
+                raise GeneralError('Attempt to set bin size to {}'.\
+                        format(bs))
+        else:
+            raise GeneralError('Attempt to set bin size to {}'.\
+                    format(bs))
+
+
+    @property
+    def norm(self):
+        return self._norm
+
+
+    @norm.setter
+    def norm(self, n):
+        if self.histogram.dim != 1:
+            raise GeneralError('Currently only 1D histograms can be normalized')
+
+        if isinstance(n, float) or isinstance(n, int):
+            if n != 0 and n != self.norm:
+                self.histogram = self.histogram.normalize1d(n, self.bin_size)
+            elif n == self.norm:
+                pass
+            else:
+                raise GeneralError('Attempt to set normalization to {}'.\
+                        format(n))
+        else:
+            raise GeneralError('Attempt to set normalization to {}'.\
+                    format(n))
+
+
+
+    def __str__(self):
+        """Basic information Informative string"""
+        string = 'Plot: {} bin {} norm {:.2e}'.\
+                    format(self.histogram.title.strip(), self.bin_size,
+                           self.norm)
+        return string
+
+
+    def __repr__(self):
+        """More verbose string
+
+        """
+        string = 'Plot: "{}" bin {} norm {:.2e} active {} mode {}'.\
+                    format(self.histogram.title.strip(), self.bin_size,
+                           self.norm, self.active, self.mode)
+        return string
+
+
 
 class Experiment:
+    """Main class for data visualization and analysis
+
+    """
+    # Deque lengths
+    FIFO_1D = 50
+    FIFO_2D = 5
+
+    # These variables and registers are class wide, so
+    # if more than one Experiment is open (one file = one Experiment)
+    # they share the registers and auto-scaling is still working
+
+    # Keeps current and past 1D plots
+    # The right-most item is the current one
+    plots = deque(maxlen=FIFO_1D)
+
+    # Current and past 2D plots
+    maps = deque(maxlen=FIFO_2D)
+
+    # 1D plot ranges
+    xlim = None
+    ylim = None
+
+    # 2D plot ranges
+    xlim2d = None
+    ylim2d = None
+    logz = False
+
+    # 1 for 1D, 2 for 2D
+    _mode = 1
+
 
     def __init__(self, file_name, size=11):
-        """Initialize plot and open data file (file_name)"""
-        self.hisfile = None
-        if size == 1:
-            shape = (8, 6)
-        elif size == 11:
-            shape = (12, 8)
-        else:
-            shape = (12, 8)
-        if size != 0:
-            plt.figure(1, shape)
-        plt.xlabel('X')
-        plt.ylabel('Y')
-        plt.ion()
-        plt.show()
-        # Max bins in 2d histogram
-        self.MAX_2D_BIN = 256
+        """Initialize, open data file (his) and open plot window
+        (size parameter decides on plot dimensions)
+
+        """
         self.file_name = file_name
+        # The current (active) file
+        self.hisfile = None
         self.load(file_name)
-        self.current = {'x' : None,
-                        'y' : None,
-                        'z' : None,
-                        'id' : None}
+
+        # Peaks for fitting
+        self.peaks = []
+        
+        # plotter front-end
+        self.plotter = plotter.Plotter(size)
 
 
     def load(self, file_name):
@@ -49,252 +179,404 @@ class Experiment:
         self.hisfile = hisfile.HisFile(file_name)
 
 
-    def d(self, his_id, norm=1, clear=True, plot=True):
-        """Plot histogram in current window/ax """
+    @property
+    def mode(self):
+        """ 1D or 2D plotting mode"""
+        return Experiment._mode
 
-        if self.hisfile is None:
-            print('Please load data file first')
-            return None
 
-        title = self.hisfile.histograms[his_id]['title']
-        data = self.hisfile.load_histogram(his_id)
-        if len(data) == 2:
-            if clear and plot:
-                self.clear()
-            label = ('{}: {} - {}'.
-                    format(self.file_name.strip('.his').strip('/'),
-                           his_id, title))
-            if norm != 1:
-                label += 'x{: .3f}'.format(1 / norm)
-            if plot:
-                plt.plot(data[0], data[1] / norm, ls='steps-mid', label=label)
-                plt.legend(loc=0, fontsize='small')
-            self.current['id'] = his_id
-            self.current['x'] = data[0]
-            self.current['y'] = data[1]/norm
-            self.current['z'] = None
-            return (data[0], data[1]/norm)
-        elif len(data) == 3:
-            print('{} is not a 1D histogram'.format(his_id))
+    @mode.setter
+    def mode(self, mode):
+        """Deactivate all plots that have different mode (dimension)"""
+        if mode not in [1, 2]:
+            raise GeneralError('Only 1D and 2D plotting modes are possible')
 
-    
-    def dd(self, his_id, rx=None, ry=None, logz=False, clear=True, plot=True):
-        """Plot 2D histogram in current window/ax,
-        rx is x range, ry is y range 
-        
+        if mode == 2:
+            self.plotter.ylin()
+
+        Experiment._mode = mode
+        for p in self.plots:
+            if p.histogram.dim != mode:
+                p.active = False
+
+
+    def _replace_latex_chars(self, text):
+        """Clear text from characters that are not accepted by latex"""
+        replace_chars = [['_', '-'],
+                            ['$', '\$'],
+                            ['%', '\%'],
+                            ['~', ' '],
+                            ['"', "''"],
+                            ['\\', ' ']]
+        replaced_text = text
+        for r_ch in replace_chars:
+            replaced_text = replaced_text.replace(r_ch[0], r_ch[1])
+        return replaced_text
+
+
+    def show_registers(self):
+        """Print the available registers"""
+        i = -1
+        print('1D histograms')
+        print('{: <3} {: ^40} {: ^5} {: ^8} {: ^8}'.\
+                format('i', 'Title', 'Bin', 'Norm', 'Active'))
+        print('-' * 79)
+
+        for p in reversed(Experiment.plots):
+            print('{: >3} {: <40} {: >5} {: >5.2e} {: >5}'.\
+                    format(i, p.histogram.title[:40], p.bin_size,
+                           p.norm, p.active))
+            i -= 1
+        print()
+
+        i = -1
+        print('2D histograms')
+        print('{: <3} {: ^40} {: ^5} {: ^8} {: ^8}'.\
+                format('i', 'Title', 'Bin', 'Norm', 'Active'))
+        print('-' * 79)
+
+        for p in reversed(Experiment.maps):
+            print('{: >3} {: <40} {: >5} {: >5.2e} {: >5}'.\
+                    format(i, p.histogram.title[:40], p.bin_size,
+                           p.norm, p.active))
+            i -= 1
+        print()
+
+
+    def _expand_norm(self, norm, num_of_args):
+        """Return normalization array of lenght equal to 
+        num_of_args, expand integers to whole array, check 
+        if list is of proper lenght
+
         """
-        if self.hisfile is None:
-            print('Please load data file first')
+        normalization = []
+        if isinstance(norm, str):
+            if norm.lower() == 'area':
+                for i in range(num_of_args):
+                    normalization.append('area')
+            else:
+                print("Normalization must be a float, ",
+                    "list of floats or a 'area' string")
+                return None
+        elif isinstance(norm, float) or isinstance(norm, int):
+            for i in range(num_of_args):
+                normalization.append(norm)
+        elif isinstance(norm, list):
+            if len(norm) == num_of_args:
+                normalization = norm
+            else:
+                print('List of normalization factors must be of the same' +
+                      ' length as the list of histograms')
+                return None
+        else:
+            print("Normalization must be a float, ",
+                  "list of floats or a 'area' string")
+            print(norm, ' was given')
             return None
-
-        title = '{}: {}'.format(his_id,
-                                self.hisfile.histograms[his_id]['title'])
-        data = self.hisfile.load_histogram(his_id)
-
-        if len(data) == 2:
-            print('{} is not a 2D histogram'.format(his_id))
-        elif len(data) == 3:
-            if clear and plot:
-                self.clear()
-
-            x = data[0]
-            y = data[1]
-            w = data[2]
-            if rx is not None:
-                x = x[rx[0]:rx[1]]
-                w = w[rx[0]:rx[1],:]
-
-            if ry is not None:
-                y = y[ry[0]:ry[1]]
-                w = w[:, ry[0]:ry[1]]
-
-            nx = len(x)
-            ny = len(y)
-
-            binx = 1
-            biny = 1
-            # First rebin data if too large
-            if nx > self.MAX_2D_BIN:
-                binx = math.ceil(nx / self.MAX_2D_BIN)
-                missing = binx * self.MAX_2D_BIN - nx
-                if missing > 0:
-                    addx = numpy.arange(data[0][-1] + 1, 
-                                        data[0][-1] + missing + 1)
-                    x = numpy.concatenate((x, addx))
-                    nx = len(x)
-                    z = numpy.zeros((missing, ny))
-                    w = numpy.concatenate((w, z), axis=0)
-                x = numpy.reshape(x, (-1, binx))
-                x = x.mean(axis=1)
-            if ny > self.MAX_2D_BIN:
-                biny = math.ceil(ny / self.MAX_2D_BIN)
-                missing = biny * self.MAX_2D_BIN - ny
-                if missing > 0:
-                    addy = numpy.arange(data[1][-1] + 1, 
-                                        data[1][-1] + missing + 1)
-                    y = numpy.concatenate((y, addy))
-                    z = numpy.zeros((nx, missing))
-                    w = numpy.concatenate((w, z), axis=1)
-                y = numpy.reshape(y, (-1, biny))
-                y = y.mean(axis=1)
-
-            nx = len(x)
-            ny = len(y)
-
-            if nx != len(data[1]) or ny != len(data[0]):
-                w = numpy.reshape(w, (nx, binx, ny, biny)).mean(3).mean(1)
-            w = numpy.transpose(w)
-
-            if plot:
-                z = w
-                if logz:
-                    z = numpy.ma.masked_where(w <= 0, numpy.log10(w))
-                    title += ' (log10)'
-                plt.title(title)
-                CS = plt.pcolormesh(x, y, z,
-                                    cmap=cm.RdYlGn_r)
-                plt.xlim(rx)
-                plt.ylim(ry)
-                plt.colorbar()
-            self.current['id'] = his_id
-            self.current['x'] = x
-            self.current['y'] = y
-            self.current['z'] = w
-            return (x, y, w)
+        return normalization
 
 
-    def gx(self, his_id, rx=None, ry=None, bg=None, norm=1,
-           clear=True, plot=True):
-        """Make projection on Y axis of 2D histogram with gate
-        set on X (rx) and possibly on Y (ry)
-        
+    def _expand_bin_sizes(self, bin_size, num_of_args):
+        """See _expand_norm"""
+        bin_sizes = []
+        if isinstance(bin_size, int):
+            for i in range(num_of_args):
+                bin_sizes.append(bin_size)
+        elif isinstance(bin_size, list):
+            if len(bin_size) == num_of_args:
+                bin_sizes = bin_size
+            else:
+                print('List of bin sizes must be of the same' +
+                      ' length as the list of histograms')
+                return None
+        else:
+            print("Bin size must be an int or a list of ints")
+            return None
+        return bin_sizes
+
+
+    def _expand_d_args(self, args):
+        """Expand list of args to a list of histograms ids or Plot
+        instances"""
+        his_list = []
+        for his in args:
+            if isinstance(his, int):
+                his_list.append(his)
+            elif isinstance(his, str):
+                try:
+                    his_range = his.split('-')
+                    his_range = [x for x in range(int(his_range[0]),
+                                                int(his_range[1]) + 1)]
+                    his_list += his_range
+                except (ValueError, IndexError):
+                    break
+            elif isinstance(his, Plot):
+                his_list.append(his)
+            else:
+                break
+        else:
+            return his_list
+        print("Histogram list must be given in a 'x-y' format,",
+                "where x and y are integers",
+                "(note also quotation marks), e.g. '100-115'")
+        return None
+
+
+
+    def d(self, *args, norm=1, bin_size=1, clear=True):
         """
-        if self.hisfile is None:
-            print('Please load data file first')
-            return None
+        Plot 1D histogram. 
+        * args: is a list of histograms that may be given as:
+              - positive integer: is interpreted as the histogram id
+                                  from a currently open file
+              - negative integer: is interpreted as the registry number
+                                  (see (show_registers())
+              - Plot object:       see Plot class
+              - string:  in 'x-y' format where x and y are integers 
+                        (note also mandatory quatation marks)
+                        is interpreted as a range of histograms ids
 
-        if rx is None or len(rx) != 2:
-            print('Please select gate on X in (min, max) format')
-            return None
-        if ry is not None and len(ry) != 2:
-            print('Please select gate on Y in (min, max) format')
-            return None
+        * norm: may be given as a single float or int value or an 'area' string,
+                also a list of lenght matching the *args list may be used
+                with any combination of the above accepted values
+        * bin_size: must be an integer, a list of ints is 
+                    also accepted (see norm)
+        * clear: is True by default, which means that previous plot is 
+                 cleared if False is given, the previous plots are not cleared.
 
-        data = self.hisfile.load_histogram(his_id)
+        Example:
+        e.d(100, plot1, '105-106', -3, bin_size=[1, 2, 1, 1, 10], clear=False)
 
-        if len(data) == 2:
-            print('{} is not a 2D histogram'.format(his_id))
-        elif len(data) == 3:
-            if clear and plot:
-                self.clear()
-            x = data[0]
-            y = data[1]
-            w = data[2]
-            if ry is None:
-                ry = [0, len(y)-2]
-            y = y[ry[0]:ry[1]+1]
-            g = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=0)
-            if bg is not None:
-                if (bg[1] - bg[0]) != (rx[1] - rx[0]):
-                    print('#Warning: background and gate of different widths')
-                g = g - w[bg[0]:bg[1]+1, ry[0]:ry[1]+1].sum(axis=0)
-            label = 'gx({},{}) {}: {}'.format(rx[0], rx[1], his_id,
-                                    self.hisfile.histograms[his_id]['title'])
-            if bg is not None:
-                label += ' bg ({}, {})'.format(bg[0], bg[1])
-            if plot:
-                plt.plot(y, g/norm, ls='steps-mid', label=label)
-                plt.legend(loc=0, fontsize='small')
-            self.current['id'] = his_id
-            self.current['x'] = y
-            self.current['y'] = g/norm
-            self.current['z'] = None
-            return (y, g/norm)
-
-
-    def gy(self, his_id, ry=None, rx=None, bg=None, norm=1,
-           clear=True, plot=True):
-        """Make projection on X axis of 2D histogram with gate
-        set on Y (ry) and possibly on X (rx), the bg gate selects a 
-        background region to be subtracted from data
-        
         """
-        if self.hisfile is None:
-            print('Please load data file first')
+        plots = []
+
+        his_list = self._expand_d_args(args)
+
+        normalization = self._expand_norm(norm, len(his_list))
+        if normalization is None:
             return None
 
-        if ry is None or len(ry) != 2:
-            print('Please select gate on Y in (min, max) format')
-            return None
-        if rx is not None and len(rx) != 2:
-            print('Please select gate on X in (min, max) format')
+        bin_sizes = self._expand_bin_sizes(bin_size, len(his_list))
+        if bin_sizes is None:
             return None
 
-        data = self.hisfile.load_histogram(his_id)
+        # Clear the plotting area (of clear is False, the currently
+        # active plots are not deactivated, so they got replotted at
+        # the end of this function)
+        self.plotter.clear()
 
-        if len(data) == 2:
-            print('{} is not a 2D histogram'.format(his_id))
-        elif len(data) == 3:
-            if clear:
-                self.clear()
-            x = data[0]
-            y = data[1]
-            w = data[2]
-            if rx is None:
-                rx = [0, len(x)-2]
-            x = x[rx[0]:rx[1]+1]
-            g = w[rx[0]:rx[1]+1, ry[0]:ry[1]+1].sum(axis=1)
-            if bg is not None:
-                if (bg[1] - bg[0]) != (ry[1] - ry[0]):
-                    print('#Warning: background and gate of different widths')
-                g = g - w[rx[0]:rx[1]+1, bg[0]:bg[1]+1].sum(axis=1)
+        # Switch mode to 1D
+        self.mode = 1
+        # Deactivate current plots if clear flag is used
+        if clear:
+            for p in Experiment.plots:
+                p.active = False
 
-            label = 'gy({},{}) {}: {}'.format(ry[0], ry[1], his_id,
-                                    self.hisfile.histograms[his_id]['title'])
-            if bg is not None:
-                label += ' bg ({}, {})'.format(bg[0], bg[1])
-            if plot:
-                plt.plot(x, g/norm, ls='steps-mid', label=label)
-                plt.legend(loc=0, fontsize='small')
-            self.current['id'] = his_id
-            self.current['x'] = x
-            self.current['y'] = g/norm
-            self.current['z'] = None
-            return (x, g/norm)
+        # Prepare data for plotting
+        for i_plot, his in enumerate(his_list):
+            if isinstance(his, int):
+                # load histograms from the file
+                if his > 0:
+                    data = self.hisfile.load_histogram(his)
+                    if data[0] != 1:
+                        print('{} is not a 1D histogram'.format(his))
+                        return None
+                    title = self.hisfile.histograms[his]['title'].strip()
+                    title = '{}:{}'.format(his, 
+                                           self._replace_latex_chars(title))
+                    histo = histogram.Histogram()
+                    histo.title = title
+                    histo.x_axis = data[1]
+                    histo.weights = data[3]
+                    histo.errors = self._standard_errors_array(data[3])
+                    plot = Plot(histo, 'histogram', True)
+                    plot.bin_size = bin_sizes[i_plot]
+                    plot.norm = normalization[i_plot]
+                    plots.append(plot)
+                    Experiment.plots.append(plot)
+                else:
+                    # plot histograms from registry
+                    # Numbered by negative numbers (-1 being the latest)
+                    # Call show_registers for a list of available plots
+                    try:
+                        plot = Experiment.plots[his]
+                        Experiment.plots[his].active = True
+                        Experiment.plots[his].bin_size = bin_sizes[i_plot]
+                        Experiment.plots[his].norm = normalization[i_plot]
+                    except IndexError:
+                        print('There is no plot in the registry under the',
+                              'number', his, 'use show_registry() to see',
+                              'available plots')
+                        return None
+                    plots.append(plot)
+            elif isinstance(his, Plot):
+                # If instance of Plot class is given, mark it active and add
+                # to the deque (if not already there)
+                # and to the array to be returned at the end
+                his.active = True
+                his.bin_size = bin_sizes[i_plot]
+                his.norm = normalization[i_plot]
+                plots.append(his)
+                if his not in Experiment.plots:
+                    Experiment.plots.append(his)
+
+        # Count the number of active plots
+        active_plots = 0
+        for plot in Experiment.plots:
+            if plot.active:
+                active_plots += 1
+
+        # Here the actual plotting happens
+        i_plot = 0
+        for plot in Experiment.plots:
+            if plot.active:
+                i_plot += 1
+                # If ylim is not given explicitely, go through the
+                # active plots to find the plot limits
+                # This is run only for the last plot.
+                # Note that this is neccesary as matplotlib is not
+                # autoscaling Y axis when 
+                # changing the X axis is being changed
+                # If, in a future, the behaviour of matplotlib
+                # changes, this part may dropped
+                ylim = None
+                if self.ylim is None and i_plot == active_plots:
+                    ylim = self._auto_scale_y()
+                else:
+                    ylim = self.ylim
+
+                # Note that ylim is autoscaled above if self.ylim is None
+                # But we still keep self.ylim None, 
+                # to indicate autoscaling
+                self.plotter.plot1d(plot, Experiment.xlim, ylim)
+
+        # Return plots that were added or activated
+        return plots
 
 
-    def clear(self):
-        """Clear current plot"""
-        plt.clf()
-        plt.xlabel('X')
-        plt.ylabel('Y') 
+    def _auto_scale_y(self):
+        """Find the y limits taking into account all active plots """
+        ylim = [None, None]
+        for p in Experiment.plots:
+            if p.active:
+                histo = p.histogram
+                #if p.bin_size > 1:
+                    #histo = histo.rebin1d(p.bin_size)
+                #if p.norm != 1:
+                    #histo = histo.normalize1d(p.norm, p.bin_size)
+                if Experiment.xlim is None:
+                    ymin = min(histo.weights)
+                    ymax = max(histo.weights)
+                else:
+                    i_xmin = Experiment.xlim[0] // p.bin_size - 1
+                    if i_xmin < 0:
+                        i_xmin = 0
+                    i_xmax = Experiment.xlim[1] // p.bin_size + 1
+                    try:
+                        ymin = min(histo.weights[i_xmin:i_xmax])
+                    except ValueError:
+                        ymin = None
+                    try:
+                        ymax = max(histo.weights[i_xmin:i_xmax])
+                    except ValueError:
+                        ymax = None
+                if ymin is not None:
+                    if ylim[0] is not None:
+                        if ymin < ylim[0]:
+                            ylim[0] = ymin
+                    else:
+                        ylim[0] = ymin
+                if ymax is not None:
+                    if ylim[1] is not None:
+                        if ymax > ylim[1]:
+                            ylim[1] = ymax
+                    else:
+                        ylim[1] = ymax
+        if ylim[0] is None or ylim[1] is None:
+            return None
+        else:
+            return [ylim[0] - ylim[0] * 0.1, ylim[1] + ylim[1] * 0.1]
 
 
-    def dl(self, x0, x1):
-        """Change xrange of 1D histogram"""
-        plt.xlim(x0, x1)
-        if self.current['y'] is not None:
-            plt.ylim(min(self.current['y'][x0:x1]),
-                     max(self.current['y'][x0:x1]))
+    def _auto_scale_x(self):
+        """Find the x axis limits taking into account all active plots."""
+        xlim = [None, None]
+        for p in Experiment.plots:
+            if p.active:
+                histo = p.histogram
+                if Experiment.xlim is None:
+                    xmin = histo.x_axis[0]
+                    xmax = histo.x_axis[-1]
+                    if xlim[0] is not None:
+                        if xmin < xlim[0]:
+                            xlim[0] = xmin
+                    else:
+                        xlim[0] = xmin
+                    if xlim[1] is not None:
+                        if xmax > xlim[1]:
+                            xlim[1] = xmax
+                    else:
+                        xlim[1] = xmax
+
+        if xlim[0] is None or xlim[1] is None:
+            return None
+        else:
+            return xlim
 
 
-    def dmm(self, y0, y1):
+    def dl(self, x0=None, x1=None):
+        """Change x range of 1D histogram"""
+        if self.mode != 1:
+            return None
+
+        if x0 is None or x1 is None:
+            Experiment.xlim = None
+            self.plotter.xlim(self._auto_scale_x())
+        else:
+            Experiment.xlim = (x0, x1)
+            self.plotter.xlim(Experiment.xlim)
+
+        if self.ylim is None:
+            self.plotter.ylim(self._auto_scale_y())
+
+
+    def dmm(self, y0=None, y1=None):
         """Change yrange of 1D histogram """
-        plt.ylim(y0, y1)
+        if self.mode != 1:
+            return None
+
+        if y0 is None or y1 is None:
+            self.ylim = None
+        else:
+            self.ylim = (y0, y1)
+
+        if self.ylim is None:
+            self.plotter.ylim(self._auto_scale_y())
+        else:
+            self.plotter.ylim(self.ylim)
 
 
     def log(self):
-        """Change y scale to log"""
-        plt.yscale('log')
+        """Change y scale to log or z scale to log"""
+        if self.mode == 1:
+            self.plotter.ylog()
+        elif self.mode == 2:
+            Experiment.logz = True
+            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
 
 
     def lin(self):
-        """Change y scale to linear"""
-        plt.yscale('linear')
+        """Change y scale to linear or z scale to linear"""
+        if self.mode == 1:
+            self.plotter.ylin()
+        if self.mode == 2:
+            Experiment.logz = False
+            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
 
 
     def list(self, his_id=None):
-        """List all histograms or details on selected histogram"""
+        """List all histograms in the active data file
+           or details on a selected histogram"""
         if his_id is None:
             for key in sorted(self.hisfile.histograms.keys()):
                 print('{: <6} {}'.format(key, 
@@ -319,84 +601,214 @@ class Experiment:
                 print('Histogram id = {} not found'.format(his_id))
 
 
-    def rebin(self, bin_size, clear=True, plot=True):
-        """Re-bin the current histogram"""
-
-        if (self.current['x'] is not None and
-            self.current['y'] is not None):
-            x = self.rebin_histogram(self.current['x'], bin_size,
-                                     False, False)
-            y = self.rebin_histogram(self.current['y'], bin_size)
-            if plot:
-                xlim = plt.xlim()
-                if clear:
-                    self.clear()
-                plt.plot(x, y, ls='steps-mid')
-                plt.xlim(xlim)
-            self.current['x'] = x
-            self.current['y'] = y
-            return (x, y)
-
-
-    def rebin_histogram(self, histogram, bin_size, add=True, zeros=True):
-        """Bin histogram. If add is True, the bins are sum of bins,
-        otherwise the mean number of counts is used. 
-        If zeros is true, in case the histogram must be extended
-        (len(histogram) % bin_size != 0) is extended with zeros,
-        otherwise an extrapolation of last two counts is used.
-
-        Example
-        y1 = binned(y1, bin1y)
-        x1 = binned(x1, bin1y, False, False)
+    def _standard_errors_array(self, data):
+        """ Calculate standard error array (\sigma_i = \sqrt{n_i}),
+           with a twist: if n_i = 0, the uncertainity is 1 (not 0)
 
         """
-        if len(histogram) % bin_size != 0:
-            if zeros:
-                addh = numpy.zeros((bin_size - len(histogram) % bin_size))
-                histogram = numpy.concatenate((histogram, addh))
+        errors = numpy.zeros(data.shape)
+        for index, d in numpy.ndenumerate(data):
+            if d == 0:
+                errors[index] = 1
             else:
-                d = histogram[-1] - histogram[-2]
-                l = histogram[-1]
-                n = bin_size - len(histogram) % bin_size
-                addh = numpy.arange(l, l + n * d, d)
-                histogram = numpy.concatenate((histogram, addh))
+                errors[index] = math.sqrt(abs(d))
+        return errors
 
-        if add:
-            return histogram.reshape((-1, bin_size)).sum(axis=1)
-        else:
-            return histogram.reshape((-1, bin_size)).mean(axis=1)
+
+    def _add_errors(self, error1, error2):
+        """Add two error arrays
+        \sigma = \sqrt{\sigma_1^2 + \sigma_2^2}
+
+        """
+        if error1.shape != error2.shape:
+            raise GeneralError('Shape of array mismatches')
+        errors = numpy.zeros(error1.shape)
+        for index, d in numpy.ndenumerate(error1):
+            errors[index] = math.sqrt(error1[index]**2 + error2[index]**2)
+        return errors
+
+
+    def gx(self, his, gate_x, gate_y=None, bg_gate=None, norm=1,
+           bin_size=1, clear=True, plot=True):
+        """Make projection on Y axis of 2D histogram with gate
+        set on X (gate_x) and possibly on Y (gate_y)
+
+        his: is a histogram id in a file
+        gate_x: is range of bins in (x0, x1) format, this selects the
+                range of X columns to be projected on Y axis
+        gate_y: is a range of bins in (y0, y1) format (optional), this
+                truncates the range of the projection along the Y axis
+        bg_gate: is a range of bins in (x0, x1) format (optional), this
+                selects the background gate that is subtracted from the
+                selected gate_x
+        norm: normalization factor (see d())
+        bin_size: binning factor (see d())
+        clear: True by default, clears previous plots
+        plot: True by default, if False no plotting is taking place, 
+              only the plot object is being returned
+        
+        """
+        if gate_x is None or len(gate_x) != 2:
+            print('Please select gate on X in a (min, max) format')
+            return None
+        if gate_y is not None and len(gate_y) != 2:
+            print('Please select gate on Y in a (min, max) format')
+            return None
+
+        # If clear flag used, clear the plotting area
+        if clear and plot:
+            self.plotter.clear()
+
+        # Switch mode to 1D
+        self.mode = 1
+        # Deactivate all plots if clear flag is used
+        if clear and plot:
+            for p in Experiment.plots:
+                p.active = False
+
+        data = self.hisfile.load_histogram(his)
+        if data[0] != 2:
+            print('{} is not a 2D histogram'.format(his))
+            return None
+
+        # x for x_axis data
+        # y for y_axis data
+        # w for weights
+        # g for gate (result)
+        # bg for background gate
+        x = data[1]
+        y = data[2]
+        w = data[3]
+        if gate_y is None:
+            gate_y = [0, len(y)-2]
+        y = y[gate_y[0]:gate_y[1]+1]
+        g = w[gate_x[0]:gate_x[1]+1, gate_y[0]:gate_y[1]+1].sum(axis=0)
+        dg = self._standard_errors_array(g)
+        if bg_gate is not None:
+            if (bg_gate[1] - bg_gate[0]) != (gate_x[1] - gate_x[0]):
+                print('#Warning: background and gate of different widths')
+            bg = w[bg_gate[0]:bg_gate[1]+1, gate_y[0]:gate_y[1]+1].sum(axis=0)
+            g = g - bg
+            # Note that since the gate is adding bins, the formula
+            # used for standard error is no longer valid
+            # This approximation should be good enough though
+            dbg = self._standard_errors_array(bg)
+            dg = self._add_errors(dg, dbg)
+
+        title = '{}:{} gx({},{})'.format(his, self.hisfile.\
+                                         histograms[his]['title'].strip(),
+                                         gate_x[0], gate_x[1])
+        if bg_gate is not None:
+            title += ' bg ({}, {})'.format(bg_gate[0], bg_gate[1])
+        title = self._replace_latex_chars(title)
+
+        histo = histogram.Histogram()
+        histo.title = title
+        histo.x_axis = y
+        histo.weights = g
+        histo.errors = dg
+        gate_plot = Plot(histo, 'histogram', True)
+        gate_plot.bin_size = bin_size
+        gate_plot.norm = norm
+
+        if plot:
+            Experiment.plots.append(gate_plot)
+            ylim = None
+            if self.ylim is None:
+                ylim = self._auto_scale_y()
+            else:
+                ylim = self.ylim
+            self.plotter.plot1d(gate_plot, Experiment.xlim, ylim)
+
+        return gate_plot
+
+
+    def gy(self, his, gate_y, gate_x=None, bg_gate=None, norm=1,
+           bin_size=1, clear=True, plot=True):
+        """Make projection on X axis of 2D histogram with gate
+        set on Y (gate_y) and possibly on X (gate_x)
+        
+        see gx for more details
+        """
+        if gate_y is None or len(gate_y) != 2:
+            print('Please select gate on Y in a (min, max) format')
+            return None
+        if gate_x is not None and len(gate_x) != 2:
+            print('Please select gate on X in a (min, max) format')
+            return None
+
+        # If clear flag used, clear the plotting area
+        if clear and plot:
+            self.plotter.clear()
+
+        # Switch mode to 1D
+        self.mode = 1
+        # Deactivate all plots if clear flag is used
+        if clear and plot:
+            for p in Experiment.plots:
+                p.active = False
+
+        data = self.hisfile.load_histogram(his)
+        if data[0] != 2:
+            print('{} is not a 2D histogram'.format(his))
+            return None
+
+        # x for x_axis data
+        # y for y_axis data
+        # w for weights
+        # g for gate (result)
+        # bg for background gate
+        x = data[1]
+        y = data[2]
+        w = data[3]
+        if gate_x is None:
+            gate_x = [0, len(y)-2]
+        x = x[gate_x[0]:gate_x[1]+1]
+        g = w[gate_x[0]:gate_x[1]+1, gate_y[0]:gate_y[1]+1].sum(axis=1)
+        dg = self._standard_errors_array(g)
+        if bg_gate is not None:
+            if (bg_gate[1] - bg_gate[0]) != (gate_y[1] - gate_y[0]):
+                print('#Warning: background and gate of different widths')
+
+            bg = w[gate_x[0]:gate_x[1]+1, bg_gate[0]:bg_gate[1]+1].sum(axis=1)
+            g = g - bg
+            # Note that since the gate is adding bins, the formula
+            # used for standard error is no longer valid
+            # This approximation should be good enough though
+            dbg = self._standard_errors_array(bg)
+            dg = self._add_errors(dg, dbg)
+
+        title = '{}:{} gy({},{})'.format(his, self.hisfile.\
+                                         histograms[his]['title'].strip(),
+                                         gate_y[0], gate_y[1])
+        if bg_gate is not None:
+            title += ' bg ({}, {})'.format(bg_gate[0], bg_gate[1])
+        title = self._replace_latex_chars(title)
+
+        histo = histogram.Histogram()
+        histo.title = title
+        histo.x_axis = x
+        histo.weights = g
+        histo.errors = dg
+        gate_plot = Plot(histo, 'histogram', True)
+        gate_plot.bin_size = bin_size
+        gate_plot.norm = norm
+
+        Experiment.plots.append(gate_plot)
+        if plot:
+            ylim = None
+            if self.ylim is None:
+                ylim = self._auto_scale_y()
+            else:
+                ylim = self.ylim
+            self.plotter.plot1d(gate_plot, Experiment.xlim, ylim)
+
+        return gate_plot
 
 
     def mark(self, x_mark):
         """Put vertical line on plot to mark the peak (or guide the eye)"""
         plt.axvline(x_mark, ls='--', c='black')
-
-
-    def set_eff_params(self, pars):
-        """Sets efficiency calibration parameters, the efficiency is calculated
-        as 
-        eff = exp(a0 + a1 * log(E) + a2 * log(E)**2 + ...)
-        """
-        self.eff_pars = pars
-
-
-    def gamma_gamma_spectra(self, gg_id, gate, clear=True):
-        """ Plots gamma-gamma gate broken into 4 subplots (0-600, 600-1200,
-        1200-2000, 2000-4000. 
-        gg_id is 2D histogram id
-        gate is in form ((x1, y1), (x2, y2)) where i=1 is gate on line, i=2
-        is gate on background
-
-        """
-        self.clear()
-        x, y = self.gy(gg_id, gate[0], bg=gate[1])
-        ranges = ((0, 600), (600, 1200), (1200, 2000), (2000, 4000))
-        for i, r in enumerate(ranges):
-            ax = plt.subplot(4, 1, i + 1)
-            ax.plot(x[r[0]:r[1]], y[r[0]:r[1]], ls='steps-mid')
-            ax.set_xlim(r)
-        ax.set_xlabel('E (keV)')
-        plt.tight_layout()
 
 
     def annotate(self, x, text, shiftx=0, shifty=0):
@@ -412,6 +824,7 @@ class Experiment:
                     horizontalalignment='center',
                     arrowprops=dict(width=1, facecolor='black', headwidth=5,
                                     shrink=0.1))
+
 
     def load_gates(self, filename):
         """Load gamma gates from text file, the format is:
@@ -437,48 +850,240 @@ class Experiment:
                                    (int(items[3]), int(items[4])))
         return gates
 
-    def gamma_time_profile(self, his_id, gate, t_bin=1, rt=None, clear=True):
-        """Plots gamma time profile, gate should be given in format:
-            ((x0, x1, (bg0, bg1))
-            
-            the rt is gate in time in (t0, t1) format"""
 
-        xg, yg = self.gx(his_id, rx=gate[0], ry=rt, plot=False)
-        xb, yb = self.gx(his_id, rx=gate[1], ry=rt, plot=False)
-        if t_bin > 1:
-            xg = self.rebin_histogram(xg, t_bin,
-                                     False, False)
-            yg = self.rebin_histogram(yg, t_bin)
-            yb = self.rebin_histogram(yb, t_bin)
-        dyg = numpy.sqrt(yg)
-        dyb = numpy.sqrt(yb)
-        y = yg - yb
-        dy = numpy.sqrt(dyg**2 + dyb**2)
+    def pk(self, e, **kwargs):
+        """Add peak for gaussian fitting procedure"""
+        p = {'E' : e}
+        p.update(kwargs)
+        self.peaks.append(p)
+
+
+    def pzot(self):
+        """Clear all peaks """
+        self.peaks.clear()
+
+
+    def dd(self, his, xc=None, yc=None, logz=None):
+        """Plot 2D histogram,
+
+        his may be a positive integer (loads histogram from the data file)
+        negative integer (2D plots registry) or Plot instance (must be a 2D
+        plot)
+
+        xc is x range, yc is y range, that may be applied immediately, 
+        see also xc() and yc() functions
+        
+        """
+        self.mode = 2
+
+        for p in Experiment.maps:
+            p.active = False
+
+        plot = None
+        self.plotter.clear()
+
+        if isinstance(his, int):
+            if his > 0:
+                data = self.hisfile.load_histogram(his)
+                if data[0] != 2:
+                    print('{} is not a 2D histogram'.format(his))
+                    return None
+
+                title = self.hisfile.histograms[his]['title'].strip()
+                title = '{}:{}'.format(his, 
+                                       self._replace_latex_chars(title))
+                histo = histogram.Histogram(dim=2)
+                histo.title = title
+                histo.x_axis = data[1]
+                histo.y_axis = data[2]
+                histo.weights = data[3]
+                plot = Plot(histo, 'map', True)
+                Experiment.maps.append(plot)
+            else:
+                # plot histogram from the registry
+                # Numbered by negative numbers (-1 being the latest)
+                # Call show_registers for a list of available plots
+                try:
+                    plot = Experiment.maps[his]
+                    Experiment.maps[his].active = True
+                except IndexError:
+                    print('There is no 2D plot in the registry under the',
+                            'number', his, 'use show_registry() to see',
+                            'available plots')
+                    return None
+        elif isinstance(his, Plot):
+            # If instance of Plot class is given, mark it active and add
+            # to the deque (if not already there)
+            # and to the array to be returned at the end
+            if his.histogram.dim != 2:
+                print('This {} is not a 2D histogram'.format(his))
+                return None
+            his.active = True
+            plot = his
+            if his not in Experiment.maps:
+                Experiment.maps.append(his)
+
+        if xc is not None:
+            Experiment.xlim2d = xc
+        if yc is not None:
+            Experiment.ylim2d = yc
+
+        if logz is None:
+            use_log = Experiment.logz
+        else:
+            use_log = logz
+        if plot is not None:
+            self.plotter.plot2d(plot, Experiment.xlim2d, 
+                                Experiment.ylim2d, use_log)
+
+        return [plot]
+
+
+    def xc(self, x0, x1):
+        """Change xrange of a 2D histogram"""
+        if self.mode == 2:
+            Experiment.xlim2d = (x0, x1)
+            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
+
+
+    def yc(self, y0, y1):
+        """Change yrange of a 2D histogram"""
+        if self.mode == 2:
+            Experiment.ylim2d = (y0, y1)
+            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
+
+
+    def clear(self):
+        self.plotter.clear()
+
+
+    def color_map(self, cmap=None):
+        if self.mode == 2:
+            self.plotter.color_map(cmap)
+            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
+
+
+    def fit_peaks(self, his=None, rx=None, clear=True):
+        """
+        Fit gaussian peaks to 1D plot. If his is not given the
+        current plot is used. If rx is not given, the current range is used
+        Returns list of lists:
+            [E, x0, dx, A, dA, s, Area]
+        where E is name of the peak, x0, A and s are fitted parameters
+        and d'something' is its uncertainity. Area is total calculated area.
+
+        """
+        if rx is None:
+            rx = Experiment.xlim
+        if len(rx) != 2:
+            print('Please use x range in format rx=(min, max), where',
+                  'min and max are integers.')
+            return None
+
+        peaks = []
+        for p in self.peaks:
+            if rx[0] <= p.get('E') <= rx[1]:
+                peaks.append(p)
+
+        PF = PeakFitter(peaks, 'linear', '')
+
+        if his is not None:
+            if isinstance(his, int):
+                if his > 0:
+                    data = self.hisfile.load_histogram(his)
+                    if data[0] != 1:
+                        print('{} is not a 1D histogram'.format(his))
+                        return None
+                    x_axis = data[1][rx[0]:rx[1]]
+                    weights = data[3][rx[0]:rx[1]]
+                else:
+                    try:
+                        x_axis = Experiment.plots[his].\
+                                histogram.x_axis[rx[0]:rx[1]]
+                        weights = Experiment.plots[his].\
+                                histogram.weights[rx[0]:rx[1]]
+                    except IndexError:
+                        print('There is no plot in the registry under the',
+                              'number', his, 'use show_registry() to see',
+                              'available plots')
+                        return None
+        else:
+            x_axis = Experiment.plots[-1].histogram.x_axis[rx[0]:rx[1]]
+            weights = Experiment.plots[-1].histogram.weights[rx[0]:rx[1]]
+
+        dweights = self._standard_errors_array(weights)
+
         if clear:
             self.clear()
-        plt.errorbar(xg, y, yerr=dy, ls='None', marker='o')
-        plt.axhline(0, ls='-', color='black')
+
+        histo_data = histogram.Histogram()
+        histo_data.x_axis = x_axis
+        histo_data.weights = weights
+        histo_data.errors = dweights
+        title = self.hisfile.histograms[his]['title'].strip()
+        title = '{}:{}'.format(his, self._replace_latex_chars(title))
+        histo_data.title = title
+        plot_data = Plot(histo_data, 'histogram', True)
+        self.plotter.plot1d(plot_data)
+        Experiment.plots.append(plot_data)
+
+        fit_result = PF.fit(x_axis, weights, dweights)
+        print(len(fit_result['x_axis']), 
+              len(fit_result['baseline']), 
+              len(fit_result['fit']))
+
+        histo_baseline = histogram.Histogram()
+        histo_baseline.x_axis = x_axis
+        histo_baseline.weights = fit_result['baseline']
+        histo_baseline.title = 'Baseline'
+        plot_baseline = Plot(histo_baseline, 'function', True)
+        self.plotter.plot1d(plot_baseline)
+        Experiment.plots.append(plot_baseline)
+
+        histo_peaks = histogram.Histogram()
+        histo_peaks.x_axis = fit_result['x_axis']
+        histo_peaks.weights = fit_result['fit']
+        histo_peaks.title = 'Fit'
+        plot_peaks = Plot(histo_peaks, 'function', True)
+        self.plotter.plot1d(plot_peaks, xlim=rx)
+        Experiment.plots.append(plot_peaks)
+
+        print('#{:^7} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
+                .format('Peak', 'x0', 'dx', 'A', 'dA', 's', 'Area'))
+        peak_data = []
+        for i, peak in enumerate(peaks):
+            if peak.get('ignore') == 'True':
+                continue
+            x0 = PF.params['x{}'.format(i)].value
+            dx = PF.params['x{}'.format(i)].stderr
+            A = PF.params['A{}'.format(i)].value
+            dA = PF.params['A{}'.format(i)].stderr
+            s = PF.params['s{}'.format(i)].value
+            Area = PF.find_area(x_axis, i)
+            print('{:>8} {:>8.2f} {:>8.2f} {:>8.1f} {:>8.1f} {:>8.3f} {:>8.1f}'
+                    .format(peaks[i].get('E'), x0, dx, A, dA, s, Area))
+            peak_data.append([peaks[i].get('E'), x0, dx, A, dA, s, Area])
+        return peak_data
 
 
-    def fit_gamma_decay(self, his_id, gate, cycle, 
-                        t_bin=1, rt=None,
+    def fit_decay(self, his, gate, cycle, 
+                        t_bin=1, time_range=None,
                         model='grow_decay',
                         pars=None,
                         clear=True):
-        """Fits gamma decay time profile,
-        his_id is E-time histogram id
-        gate should be given in format:
+        """Fits decay time profile (grow-in/decay cycle):
+        * his: is E-time histogram id
+        * gate:  should be given in format:
             ((x0, x1, (bg0, bg1))
-        cycle is list of beam start, beam stop, cycle end, e.g.
+        * cycle: is list of beam start, beam stop, cycle end, e.g.
         (0, 100, 300)
-
-        t_bin is a binning parameter
-            
-        rt is a gate in time in (t0, t1) format
-
-        model is model used for fit (see decay_fitter)
-
-        pars is a list of dictionaries (one dict per each parameter)
+        * t_bin: is a binning parameter (optional)
+        * time_range: is a gate in time in (t0, t1) format (optional)
+        * model: is a model used for fit (see decay_fitter)
+                 (default is 'grow_decay')
+        * pars is a list of dictionaries (one dict per each parameter)
+        (optional, use if model is different than the default one, see
+        decay_fitter for details)
             
         """
         if pars is None:
@@ -498,26 +1103,61 @@ class Experiment:
 
         df = DecayFitter()
 
-        xg, yg = self.gx(his_id, rx=gate[0], ry=rt, plot=False)
-        xb, yb = self.gx(his_id, rx=gate[1], ry=rt, plot=False)
-        if t_bin > 1:
-            xg = self.rebin_histogram(xg, t_bin,
-                                     False, False)
-            yg = self.rebin_histogram(yg, t_bin)
-            yb = self.rebin_histogram(yb, t_bin)
-        dyg = numpy.sqrt(yg)
-        dyb = numpy.sqrt(yb)
-        y = yg - yb
-        dy = numpy.sqrt(dyg**2 + dyb**2)
+        xgate = self.gx(his, gate_x=gate[0], gate_y=time_range, bin_size=t_bin,
+                            plot=False)
+        bckg = self.gx(his, gate_x=gate[1], gate_y=time_range, bin_size=t_bin,
+                          plot=False)
 
-        t, n, parameters = df.fit(xg, y, dy, model, parameters)
+        dyg = self._standard_errors_array(xgate.histogram.weights)
+        dyb = self._standard_errors_array(bckg.histogram.weights)
+
+        gate_histo = histogram.Histogram()
+        gate_histo.x_axis = xgate.histogram.x_axis
+        gate_histo.weights = xgate.histogram.weights - bckg.histogram.weights
+        gate_histo.errors = numpy.sqrt(dyg**2 + dyb**2)
+        gate_histo.title = '{}: gx {} bg {} bin {}'.\
+                format(his, gate[0], gate[1], t_bin)
+        plot_data = Plot(gate_histo, 'errorbar', True)
+
+        t, n, parameters = df.fit(gate_histo.x_axis, gate_histo.weights,
+                                  gate_histo.errors, model, parameters)
+
+        fit_histo = histogram.Histogram()
+        fit_histo.x_axis = t
+        fit_histo.weights = n
+        fit_histo.title = self._replace_latex_chars('Fit: {}'.format(model))
+        plot_fit = Plot(fit_histo, 'function', True)
 
         if clear:
             self.clear()
-        plt.errorbar(xg, y, yerr=dy, ls='None', marker='o')
-        plt.plot(t, n, ls='-', color='red')
-        plt.axhline(0, ls='-', color='black')
-        return (t, n, parameters)
+
+        self.plotter.plot1d(plot_fit, [cycle[0], cycle[2]], None)
+        self.plotter.plot1d(plot_data, [cycle[0], cycle[2]], None)
+
+        Experiment.plots.append(plot_fit)
+        Experiment.plots.append(plot_data)
+
+        return parameters
+
+
+    def gamma_gamma_spectra(self, gg_id, gate, bin_size=1):
+        """ 
+        Plots gamma-gamma gate broken into 4 subplots (0-600, 600-1200,
+        1200-2000, 2000-4000. 
+        gg_id is a 2D histogram id
+        gate is in form ((x1, y1), (x2, y2)) where i=1 is gate on line, i=2
+        is gate on background
+
+        This special plot is not loaded into the registry in a 4 panel
+        form, but as a 'standard' plot object
+
+        """
+        self.clear()
+        plot = self.gy(gg_id, gate[0], bg_gate=gate[1], 
+                       bin_size=bin_size, plot=False )
+        ranges = (0, 600, 1200, 2000, 4000)
+        self.plotter.plot1d_4panel(plot, ranges)
+
 
 
 if __name__ == "__main__":

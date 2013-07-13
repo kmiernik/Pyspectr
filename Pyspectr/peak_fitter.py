@@ -1,11 +1,10 @@
-
 #!/usr/bin/env python3
-"""
-    K. Miernik 2013
-    k.a.miernik@gmail.com
-    GPL v3
+"""K. Miernik 2012
+k.a.miernik@gmail.com
+Distributed under GNU General Public Licence v3
 
-    Peak fitting class
+    Gaussian peak fitting class
+
 """
 
 import math
@@ -14,7 +13,6 @@ import os
 import sys
 import time
 
-import matplotlib.pyplot as plt
 from lmfit import minimize, Parameters, report_errors
 
 from Pyspectr.exceptions import GeneralError as GeneralError
@@ -94,6 +92,11 @@ class PeakFitter:
 
 
     def fit_func(self, params, data_x):
+        """
+        Function used in residuals function to be fitted. Combines all peaks and
+        baseline
+
+        """
         y = numpy.zeros((len(data_x)))
         if self.baseline == 'linear':
             y += self._linear(params, data_x)
@@ -134,7 +137,7 @@ class PeakFitter:
             self.params['x{}'.format(i)].min = data_x[0]
             self.params['x{}'.format(i)].max = data_x[-1]
             self.params['s{}'.format(i)].value = 0.85
-            self.params['s{}'.format(i)].vary = False
+            self.params['s{}'.format(i)].vary = True
             self.params['A{}'.format(i)].value = data_y[int(E - data_x[0])]
             if model == "gauss_l":
                 self.params['sL{}'.format(i)].value = 0.1
@@ -149,7 +152,13 @@ class PeakFitter:
         self.params['a0'].value = y0 - x0 * self.params['a1'].value
 
 
-    def fit(self, data_x, data_y, data_dy, show, pause):
+    def fit(self, data_x, data_y, data_dy, show='plot', pause=0):
+        """
+        Fit peaks in the data, returns x_axis points, baseline (background) 
+        and fit (peaks) data points. The parameters of the fit (peaks parameters)
+        can be extracted from params variable.
+
+        """
         self._initialize(data_x, data_y)
         result = minimize(self.residual, self.params, 
                           args=(data_x, data_y, data_dy))
@@ -162,21 +171,6 @@ class PeakFitter:
         elif self.baseline == 'quadratic':
             yb = self._quadratic(self.params, data_x)
 
-        if show == 'plot' or show == 'svg':
-            plt.clf()
-            plt.xlabel('Channel')
-            plt.ylabel('Counts')
-            plt.plot(data_x, data_y, linestyle='steps-mid')
-            plt.plot(data_x, yb, linestyle='--')
-            plt.plot(x, y0, linewidth=1.0)
-            if show == 'svg':
-                svg_name = 'fit_{0}_{1}-{2}'.format(self.plot_name,
-                                            int(data_x[0]), int(data_x[-1]))
-                svg_name = svg_name.replace('.', '').replace('/', '') + '.svg'
-                plt.savefig(svg_name)
-            else:
-                plt.draw()
-                time.sleep(pause)
-        elif show == 'quiet':
-            pass
+        functions = {'x_axis' : x, 'baseline': yb, 'fit': y0}
 
+        return functions

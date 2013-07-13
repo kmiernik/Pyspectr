@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+"""K. Miernik 2012
+k.a.miernik@gmail.com
+Distributed under GNU General Public Licence v3
+
+This module provides class to fit grow-in/decay functions
+(Bateman equation solution and more)
+
+"""
+
 
 import math
 import numpy
@@ -10,11 +19,13 @@ class DecayFitter:
         self.models = {'grow_decay' : self.grow_decay,
                        'grow_decay_flash' : self.grow_decay_flash,
                        'grow_decay2' : self.grow_decay2,
+                       'grow_decay2_bg' : self.grow_decay2_bg,
                        'grow_decay_isomer' : self.grow_decay_isomer,
                        'grow_decay_diffusion' : self.grow_decay_diffusion,
                        'decay_only' : self.decay_only,
                        'decay_only2' : self.decay_only2,
                        'grow_decay_offset' : self.grow_decay_offset}
+
 
     def grow_decay(self, params, data_x):
         T0 = params['T0'].value
@@ -55,6 +66,7 @@ class DecayFitter:
                 y.append(0)
         return numpy.array(y)
 
+
     def grow_decay_offset(self, params, data_x):
         T0 = params['T0'].value
         T1 = params['T1'].value
@@ -71,6 +83,7 @@ class DecayFitter:
             else:
                 y.append(0)
         return numpy.array(y)
+
 
     def decay_only(self, params, data_x):
         T0 = params['T0'].value
@@ -132,6 +145,35 @@ class DecayFitter:
                         (numpy.exp(T1 / t1) - 1) * numpy.exp(-t / t1) +
                         (P2 - P1 * t2 / (t1 - t2)) *
                         (numpy.exp(T1 / t2) - 1) * numpy.exp(-t / t2))
+            else:
+                y.append(0)
+        return numpy.array(y)
+
+
+    def grow_decay2_bg(self, params, data_x):
+        """Bateman for second in the chain, both grow and decay part of 
+        the cycle plus background"""
+        T0 = params['T0'].value
+        T1 = params['T1'].value
+        T2 = params['T2'].value
+        P1 = params['P1'].value
+        P2 = params['P2'].value
+        t1 = params['t1'].value
+        t2 = params['t2'].value
+        y0 = params['y0'].value
+        y = []
+        for t in data_x:
+            if T0 < t < T1:
+                y.append( (P1 + P2) * (1 - numpy.exp(-t / t2)) +
+                        P1 * t1 / (t1 - t2) *
+                        (numpy.exp(-t / t2) - numpy.exp(-t / t1))
+                        + y0)
+            elif T1 <= t < T2:
+                y.append(P1 * t1 / (t1 - t2) * 
+                        (numpy.exp(T1 / t1) - 1) * numpy.exp(-t / t1) +
+                        (P2 - P1 * t2 / (t1 - t2)) *
+                        (numpy.exp(T1 / t2) - 1) * numpy.exp(-t / t2) 
+                        + y0)
             else:
                 y.append(0)
         return numpy.array(y)

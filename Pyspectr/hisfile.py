@@ -36,6 +36,8 @@ class HisFile:
         self.histograms = {}
         self._tmp_files = []
         self.load(file_name)
+        self.file_name = file_name
+
 
     def __del__(self):
         """Clears temporary files (if tar gz archive was opened)
@@ -178,7 +180,16 @@ class HisFile:
 
 
     def load_histogram(self, his_id):
-        """Loads histogram with given id from the file
+        """Loads histogram with given id from the file.
+
+        Returns array of:
+        [dim, data_x, data_y, weights]
+        where dim is 1 or 2 (dimension of the histogram)
+        data_x is the X axis data
+        data_y is the Y axis data (for 2D histograms) or None (for 1D)
+        weights is the histograms data, a 1D array (for 1D histogram) or
+                2D array for (2D histogram) matching the shapes of 
+                data_x, data_y
         
         """
         if self.histograms.get(his_id) is None:
@@ -217,9 +228,10 @@ class HisFile:
             data = numpy.transpose(data)
 
         if self.histograms[his_id]['dimension'] == 1:
-            return [x_axis, numpy.array(data)]
+            return [1, x_axis, None, numpy.array(data)]
         else:
-            return [x_axis, y_axis, data]
+            return [2, x_axis, y_axis, data]
+
 
 if __name__ == "__main__":
     pass
