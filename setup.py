@@ -6,6 +6,7 @@ setup(
     author='Krzysztof Miernik',
     author_email='kamiernik@gmail.com',
     packages=['Pyspectr'],
+    url=['https://github.com/kmiernik/Pyspectr'],
     scripts=['bin/gamma_calibrator.py',
              'bin/py_grow_decay.py',
              'bin/spectrum_profiler.py',
@@ -14,11 +15,6 @@ setup(
     license='LICENSE.txt',
     description='Useful spectroscopic tools',
     long_description=open('README.txt').read(),
-    install_requires=[
-        "numpy",
-        "matplotlib",
-        "lmfit"
-    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",

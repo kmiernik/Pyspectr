@@ -10,3 +10,7 @@ Users are encouraged to use pydamm within ipython3 shell, as it offers a great
 advantages over standard python3 shell, such as tab-completion with history
 search, input/outputs registry (as in Maxima or Mathematica), etc.  However, it
 is also possible to work with pydamm with the standard python3 shell.
+
+This package requires the following modules:
+numpy, matplotlib, lmfit
+
