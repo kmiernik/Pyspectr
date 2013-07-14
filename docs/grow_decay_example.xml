@@ -1,3 +1,4 @@
+<!-- Example input file for py_grow_decay.py -->
 <Config>
     <file scale="1.00" name="test.txt">
         <model name="grow_decay">
