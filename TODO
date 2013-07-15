@@ -1,4 +1,10 @@
+Core features:
 * Adding and subtracting plots (class method)
 * Normalization of 1D histograms on a selected range
+* "Banana" gates implementation like the one in readhis
+
+Documentation
 * Write good manual with examples
+* Go through all the functions and write more detailed documentation strings
+  use common format for doc strings
 * More details in README (installation etc.)

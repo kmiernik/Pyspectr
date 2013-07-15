@@ -840,11 +840,15 @@ class Experiment:
         return gates
 
 
-    def pk(self, e, **kwargs):
-        """Add peak for gaussian fitting procedure"""
-        p = {'E' : e}
-        p.update(kwargs)
-        self.peaks.append(p)
+    def pk(self, *args, **kwargs):
+        """Add peaks for gaussian fitting procedure. The args
+        give a list of peak energy (approx.), the kwargs may include
+        additional parameters (e.g. min or max, etc) used by peak_fitter"""
+        for e in args:
+            if isinstance(e, int) or isinstance(e, float):
+                p = {'E' : e}
+                p.update(kwargs)
+                self.peaks.append(p)
 
 
     def pzot(self):
@@ -990,6 +994,11 @@ class Experiment:
                   'min and max are integers.')
             return None
 
+        # Deactivate all the plots
+        for p in Experiment.plots:
+            if p.active:
+                p.active = False
+
         peaks = []
         for p in self.peaks:
             if rx[0] <= p.get('E') <= rx[1]:
@@ -1004,22 +1013,25 @@ class Experiment:
                     if data[0] != 1:
                         print('{} is not a 1D histogram'.format(his))
                         return None
-                    x_axis = data[1][rx[0]:rx[1]]
-                    weights = data[3][rx[0]:rx[1]]
+                    x_axis = data[1]
+                    weights = data[3]
+                    title = self.hisfile.histograms[his]['title'].strip()
+                    title = '{}:{}'.format(his,
+                                           self._replace_latex_chars(title))
                 else:
                     try:
-                        x_axis = Experiment.plots[his].\
-                                histogram.x_axis[rx[0]:rx[1]]
-                        weights = Experiment.plots[his].\
-                                histogram.weights[rx[0]:rx[1]]
+                        x_axis = Experiment.plots[his].histogram.x_axis
+                        weights = Experiment.plots[his].histogram.weights
+                        title = Experiment.plots[his].histogram.title
                     except IndexError:
                         print('There is no plot in the registry under the',
                               'number', his, 'use show_registry() to see',
                               'available plots')
                         return None
         else:
-            x_axis = Experiment.plots[-1].histogram.x_axis[rx[0]:rx[1]]
-            weights = Experiment.plots[-1].histogram.weights[rx[0]:rx[1]]
+            x_axis = Experiment.plots[-1].histogram.x_axis
+            weights = Experiment.plots[-1].histogram.weights
+            title = Experiment.plots[-1].histogram.title
 
         dweights = self._standard_errors_array(weights)
 
@@ -1030,33 +1042,46 @@ class Experiment:
         histo_data.x_axis = x_axis
         histo_data.weights = weights
         histo_data.errors = dweights
-        title = self.hisfile.histograms[his]['title'].strip()
-        title = '{}:{}'.format(his, self._replace_latex_chars(title))
         histo_data.title = title
         plot_data = Plot(histo_data, 'histogram', True)
-        self.plotter.plot1d(plot_data)
-        Experiment.plots.append(plot_data)
+        # The histogram data is plotted here so the fit function
+        # may be overlaid on in. However, the plot_data is appended 
+        # to the registry after the fit functions so it is on top of the
+        # registry.
+        self.plotter.plot1d(plot_data, xlim=rx)
 
-        fit_result = PF.fit(x_axis, weights, dweights)
-        print(len(fit_result['x_axis']), 
-              len(fit_result['baseline']), 
-              len(fit_result['fit']))
+        fit_result = PF.fit(x_axis[rx[0]:rx[1]], weights[rx[0]:rx[1]],
+                            dweights[rx[0]:rx[1]])
 
         histo_baseline = histogram.Histogram()
-        histo_baseline.x_axis = x_axis
+        histo_baseline.x_axis = x_axis[rx[0]:rx[1]]
         histo_baseline.weights = fit_result['baseline']
         histo_baseline.title = 'Baseline'
         plot_baseline = Plot(histo_baseline, 'function', True)
-        self.plotter.plot1d(plot_baseline)
-        Experiment.plots.append(plot_baseline)
+        self.plotter.plot1d(plot_baseline, xlim=rx)
 
         histo_peaks = histogram.Histogram()
         histo_peaks.x_axis = fit_result['x_axis']
         histo_peaks.weights = fit_result['fit']
         histo_peaks.title = 'Fit'
         plot_peaks = Plot(histo_peaks, 'function', True)
-        self.plotter.plot1d(plot_peaks, xlim=rx)
+
+        # Append all the plots to the registry, but
+        # keep original data at the end, so the next fit_peaks()
+        # call will use then again as default
+        Experiment.plots.append(plot_baseline)
         Experiment.plots.append(plot_peaks)
+        Experiment.plots.append(plot_data)
+
+        # Plot the last one with the auto_scale if needed
+        if Experiment.ylim is None:
+            ylim = self._auto_scale_y()
+        else:
+            ylim = Experiment.ylim
+
+        self.plotter.plot1d(plot_peaks, xlim=rx, ylim=ylim)
+
+
 
         print('#{:^7} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
                 .format('Peak', 'x0', 'dx', 'A', 'dA', 's', 'Area'))

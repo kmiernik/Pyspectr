@@ -225,7 +225,11 @@ class Plotter:
 
         """
         if cmap is None:
-            self.cmap = self.color_maps[(self.color_maps.index(self.cmap) + 1) %
-                                        len(self.color_maps)]
+            try:
+                self.cmap = self.color_maps[(self.color_maps.\
+                                            index(self.cmap) + 1) %
+                                            len(self.color_maps)]
+            except ValueError:
+                self.cmap = self_color_maps[0]
         else:
             self.cmap = cmap
