@@ -1,4 +1,5 @@
 __pycache__/
+Pyspectr/__pycache__/
 build/
 *~
 *.swp
