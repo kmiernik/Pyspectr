@@ -91,18 +91,7 @@ class Plot:
     def norm(self, n):
         if self.histogram.dim != 1:
             raise GeneralError('Currently only 1D histograms can be normalized')
-
-        if isinstance(n, float) or isinstance(n, int):
-            if n != 0 and n != self.norm:
-                self.histogram = self.histogram.normalize1d(n, self.bin_size)
-            elif n == self.norm:
-                pass
-            else:
-                raise GeneralError('Attempt to set normalization to {}'.\
-                        format(n))
-        else:
-            raise GeneralError('Attempt to set normalization to {}'.\
-                    format(n))
+        self.histogram = self.histogram.normalize1d(n, self.bin_size)
 
 
 
@@ -939,18 +928,39 @@ class Experiment:
         return [plot]
 
 
-    def xc(self, x0, x1):
-        """Change xrange of a 2D histogram"""
+    def xc(self, x0=None, x1=None):
+        """Change xrange of a 2D histograms"""
         if self.mode == 2:
-            Experiment.xlim2d = (x0, x1)
-            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
+            if x0 is None or x1 is None:
+                Experiment.xlim2d = None
+                xlim = None
+                for p in Experiment.maps:
+                    if p.active:
+                        histo = p.histogram
+                        xlim = (histo.x_axis[0], histo.x_axis[-1])
+                        break
+            else:
+                Experiment.xlim2d = (x0, x1)
+                xlim = (x0, x1)
+            self.dd(-1, xc=xlim, yc=Experiment.ylim2d)
 
 
-    def yc(self, y0, y1):
+    def yc(self, y0=None, y1=None):
         """Change yrange of a 2D histogram"""
         if self.mode == 2:
-            Experiment.ylim2d = (y0, y1)
-            self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
+            if y0 is None or y1 is None:
+                Experiment.ylim2d = None
+                ylim = None
+                for p in Experiment.maps:
+                    if p.active:
+                        histo = p.histogram
+                        ylim = (histo.y_axis[0], histo.y_axis[-1])
+                        break
+            else:
+                Experiment.ylim2d = (y0, y1)
+                ylim = (y0, y1)
+            self.dd(-1, xc=Experiment.xlim2d, yc=ylim)
+
 
 
     def clear(self):

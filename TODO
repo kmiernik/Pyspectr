@@ -1,3 +1,4 @@
 * Adding and subtracting plots (class method)
+* Normalization of 1D histograms on a selected range
 * Write good manual with examples
 * More details in README (installation etc.)
