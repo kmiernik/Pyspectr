@@ -25,8 +25,8 @@ It is also recommended to install the ipython shell:
 * ipython (http://ipython.org/)
 However, the standard python shell will also work.
 
-In a typical Linux distrubution the numpy, matplotlib and ipython should be
-incuded in the package manager repositories (note that python3 version is
+In a typical Linux distribution the numpy, matplotlib and ipython should be
+included in the package manager repositories (note that python3 version is
 needed). If they are missing the github repositories include information about
 the building and installation procedure (it is very simple). The lmfit library
 on the github includes the standard pythons distutils setup script and is also
@@ -58,19 +58,19 @@ and analyze the data:
 >>> e.gx(1000, (212, 214))
 ...
 
-However, there are some useful things that the DAMM couldn't do easyli. Check
+However, there are some useful things that the DAMM couldn't do easily. Check
 functions like Experiment.show_registry(), Experiment.gamma_gamma_spectra(),
 Experiment.fit_decay(), ...
 
 Finally remember about the python's build-in help(), that should allow you to
-investigate the avaiable variables and methods. While the documentation is
-far from being perfect, at least it should give you a hint about possibilites.
+investigate the available variables and methods. While the documentation is
+far from being perfect, at least it should give you a hint about possibilities.
 
 spectrum_fitter
 ---------------
 
 This script fits the peaks in a .his or .txt spectrum file. The peak function
-include skewed Gaussian and other more sophistacated models. The fit
+include the Gaussian function, skewed Gaussian and more. The fit
 configuration is done via XML config file, see spectrum_fitter_example.xml
 
 
