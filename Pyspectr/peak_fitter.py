@@ -32,7 +32,7 @@ class PeakFitter:
             self.params.add('a1')
             self.params.add('a2', value=0.0)
         else:
-            raise GeneralError("Unknown background type {}".format(background))
+            raise GeneralError("Unknown background type {}".format(baseline))
 
         for peak_index in range(len(self.peaks)):
             self.params.add('x{}'.format(peak_index))

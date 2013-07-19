@@ -751,7 +751,7 @@ class Experiment:
         y = data[2]
         w = data[3]
         if gate_x is None:
-            gate_x = [0, len(y)-2]
+            gate_x = [0, len(x)-2]
         x = x[gate_x[0]:gate_x[1]+1]
         g = w[gate_x[0]:gate_x[1]+1, gate_y[0]:gate_y[1]+1].sum(axis=1)
         dg = self._standard_errors_array(g)
@@ -801,9 +801,13 @@ class Experiment:
 
 
     def annotate(self, x, text, shiftx=0, shifty=0):
-        """ Add arrow with line energy and possible short text"""
+        """ Add arrow at x, with annotation text"""
+        if self.mode != 1:
+            print('Annotation works only for 1D histograms')
+            return None
+
         length = 0.07 * (plt.ylim()[1] - plt.ylim()[0])
-        y = self.current['y'][x]
+        y = self.plots[-1].histogram.weights[x // self.plots[-1].bin_size]
         plt.annotate(text, xy=(x, y),
                     xytext=(x + shiftx, y + length + shifty),
                     rotation=90.,
@@ -1083,7 +1087,7 @@ class Experiment:
 
 
 
-        print('#{:^7} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
+        print('#{:^8} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
                 .format('Peak', 'x0', 'dx', 'A', 'dA', 's', 'Area'))
         peak_data = []
         for i, peak in enumerate(peaks):

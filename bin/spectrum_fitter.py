@@ -86,7 +86,9 @@ class SpectrumParser:
 
             if smin is not None and smax is not None:
                 PF.restrict_width(float(smin), float(smax))
+
             fit_result = PF.fit(data_x, data_y, data_dy, show, pause)
+
             if show == 'plot' or show == 'svg':
                 plt.clf()
                 plt.xlabel('Channel')
@@ -97,7 +99,8 @@ class SpectrumParser:
                 if show == 'svg':
                     svg_name = 'fit_{0}_{1}-{2}'.format(self.plot_name,
                                                 int(data_x[0]), int(data_x[-1]))
-                    svg_name = svg_name.replace('.', '').replace('/', '') + '.svg'
+                    svg_name = svg_name.replace('.', '').\
+                            replace('/', '') + '.svg'
                     plt.savefig(svg_name)
                 else:
                     plt.draw()
@@ -113,9 +116,13 @@ class SpectrumParser:
                 A = PF.params['A{}'.format(i)].value
                 dA = PF.params['A{}'.format(i)].stderr
                 s = PF.params['s{}'.format(i)].value
+                E = peaks[i].get('E')
+                name = peaks[i].get('name')
                 Area = PF.find_area(data_x, i)
-                print('{:>8} {:>8.2f} {:>8.2f} {:>8.1f} {:>8.1f} {:>8.3f} {:>8.1f}'
-                      .format(peaks[i].get('E'), x0, dx, A, dA, s, Area))
+                print('{:>8} {:>8} {:>8.2f} {:>8.2f}'.\
+                        format(name, E, x0, dx), 
+                      '{:>8.1f} {:>8.1f} {:>8.3f} {:>8.1f}'.\
+                        format(A, dA, s, Area))
 
 
 if __name__ == "__main__":
@@ -155,7 +162,7 @@ if __name__ == "__main__":
     for data_file in root.findall('data_file'):
         SP = SpectrumParser(data_file.get('name'))
         print('# File: ', data_file.get('name'))
-        print('#{:^7} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
-                .format('Peak', 'x0', 'dx', 'A', 'dA', 's', 'Area'))
+        print('# {: ^8} {:^7} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
+                .format('Name', 'E', 'x0', 'dx', 'A', 'dA', 's', 'Area'))
         for spectrum in data_file.findall('spectrum'):
             SP.parse(spectrum, show, args.pause[0])
