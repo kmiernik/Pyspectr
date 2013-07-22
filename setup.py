@@ -19,4 +19,5 @@ setup(
         "Programming Language :: Python :: 3.3",
         "Topic :: Scientific/Engineering :: Physics",
     ],
+    requires=['matplotlib', 'numpy', 'lmfit'],
 )
