@@ -13,13 +13,15 @@ is also possible to work with pydamm with the standard python3 shell.
 
 
 Instalation
-===========
+============
+
 This package requires the following modules:
 * numpy (http://www.numpy.org/)
 * matplotlib (http://matplotlib.org/, 
               https://github.com/matplotlib/matplotlib)
 * lmfit (https://github.com/newville/lmfit-py,
          http://cars9.uchicago.edu/software/python/lmfit/)
+  Note: if github version doesn't work see the second link
 
 It is also recommended to install the ipython shell:
 * ipython (http://ipython.org/)
@@ -47,16 +49,19 @@ the pydamm module:
 
 The main class for the data analysis is the Experiment, it requires a file
 name (.his) to be given in the constructor:
+
 >>> e = Experiment('data_file.his')
+
 or tar gzipped file (.tgz, .tar.gz):
+
 >>> e = Experiment('data_file.tgz')
 
 Ones the Experiment object is created follow DAMM-like syntax to display
 and analyze the data:
+
 >>> e.d(100)
 >>> e.dl(0, 1000)
 >>> e.gx(1000, (212, 214))
-...
 
 However, there are some useful things that the DAMM couldn't do easily. Check
 functions like Experiment.show_registry(), Experiment.gamma_gamma_spectra(),

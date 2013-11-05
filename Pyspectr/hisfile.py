@@ -206,9 +206,9 @@ class HisFile:
                 length *= self.histograms[his_id]['scaled'][d]
 
             if self.histograms[his_id]['half_words_per_ch'] == 1:
-                data = array('h')
+                data = array('H')
             elif self.histograms[his_id]['half_words_per_ch'] == 2:
-                data = array('i')
+                data = array('I')
             else:
                 msg = 'half-words per channel histograms are not supported'
                 raise GeneralError('{} {}'.format(
