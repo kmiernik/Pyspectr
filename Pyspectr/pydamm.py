@@ -563,31 +563,55 @@ class Experiment:
             self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
 
 
-    def list(self, his_id=None):
-        """List all histograms in the active data file
-           or details on a selected histogram"""
+    def list(self, his_id=None, *args):
+        """List all histograms in the active data file if no parameter
+        is given. If his_id is integer, displays details on the selected
+        histogram. If his_id is string displays all histograms with title
+        matching the string. If his_id is a list of strings displays 
+        all histograms with title matching all the strings (AND operation)."""
         if his_id is None:
             for key in sorted(self.hisfile.histograms.keys()):
                 print('{: <6} {}'.format(key, 
                                     self.hisfile.histograms[key]['title']))
         else:
-            try:
-                dim = self.hisfile.histograms[his_id]['dimension']
-                xmin = []
-                xmax = []
-                for i in range(dim):
-                    xmin.append(self.hisfile.histograms[his_id]['minc'][0])
-                    xmax.append(self.hisfile.histograms[his_id]['maxc'][0])
-                print('{: <10} : {}'.format('ID', his_id))
-                print('{: <10} : {}'.format('Title', 
+            if isinstance(his_id, int):
+                try:
+                    dim = self.hisfile.histograms[his_id]['dimension']
+                    xmin = []
+                    xmax = []
+                    for i in range(dim):
+                        xmin.append(self.hisfile.histograms[his_id]['minc'][0])
+                        xmax.append(self.hisfile.histograms[his_id]['maxc'][0])
+                    print('{: <10} : {}'.format('ID', his_id))
+                    print('{: <10} : {}'.format('Title', 
                                     self.hisfile.histograms[his_id]['title']))
-                print('{: <10} : {}'.format('Dimensions', dim))
-                print('{: <10} : ({}, {})'.format('X range', xmin[0], xmax[0]))
-                if dim > 1:
-                    print('{: <10} : ({}, {})'.format('Y range', 
-                                                      xmin[1], xmax[1]))
-            except KeyError:
-                print('Histogram id = {} not found'.format(his_id))
+                    print('{: <10} : {}'.format('Dimensions', dim))
+                    print('{: <10} : ({}, {})'.format('X range', 
+                                                      xmin[0], xmax[0]))
+                    if dim > 1:
+                        print('{: <10} : ({}, {})'.format('Y range', 
+                                                        xmin[1], xmax[1]))
+                except KeyError:
+                    print('Histogram id = {} not found'.format(his_id))
+            elif isinstance(his_id, str):
+                try:
+                    words = args + (his_id, )
+                    is_found = False
+                    for his_i, histo in self.hisfile.histograms.items():
+                        title = histo['title']
+                        for word in words:
+                            if title.lower().find(word.lower()) < 0:
+                                break
+                        else:
+                            is_found = True
+                            print('{: <6} {}'.format(his_i, title)) 
+                    if not is_found:
+                        print('No matching histogram title found')
+                except AttributeError:
+                    print('his_id must be a integer, string or a\
+                            list of strings')
+            else:
+                print('his_id must be a integer, string or list of strings')
 
 
     def _standard_errors_array(self, data):
