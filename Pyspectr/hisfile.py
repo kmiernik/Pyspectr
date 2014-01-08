@@ -218,6 +218,7 @@ class HisFile:
             his_file.seek(offset * 2)
             data.fromfile(his_file, length)
 
+        data = numpy.array(data, dtype=numpy.int32)
         x_axis = numpy.arange(self.histograms[his_id]['minc'][0] + self._dx,
                             self.histograms[his_id]['maxc'][0] + self._dx + 1.0)
         if self.histograms[his_id]['dimension'] == 2:
@@ -228,7 +229,7 @@ class HisFile:
             data = numpy.transpose(data)
 
         if self.histograms[his_id]['dimension'] == 1:
-            return [1, x_axis, None, numpy.array(data)]
+            return [1, x_axis, None, data]
         else:
             return [2, x_axis, y_axis, data]
 
