@@ -1156,13 +1156,34 @@ class Experiment:
             P1 = {'name' : 'P1', 'value' : 100.0}
             t1 = {'name' : 't1', 'value' : 100.0}
             parameters = [T0, T1, T2, P1, t1]
-            if model == 'grow_decay2':
-                P2 = {'name' : 'P2', 'value' : 1000.0}
-                t2 = {'name' : 't2', 'value' : 1000.0}
+            if  model == 'decay_only':
+                pass
+            elif (model == 'grow_decay2' or
+                  model == 'grow_decay_isomer' or
+                  model == 'grow_decay_diffusion' or
+                  model == 'decay_only2'):
+                P2 = {'name' : 'P2', 'value' : 100.0, 'min' : 0.0}
+                t2 = {'name' : 't2', 'value' : 200.0, 'min' : 0.0}
                 parameters.append(P2)
                 parameters.append(t2)
+            elif (model == 'grow_decay_flash'):
+                F = {'name' : 'F', 'value' : 0.0, 'min' : 0.0}
+                y0 = {'name' : 'y0', 'value' : 0.0, 'min' : 0.0}
+                parameters.append(F)
+                parameters.append(y0)
+            elif (model == 'grow_decay2_bg'):
+                P2 = {'name' : 'P2', 'value' : 100.0, 'min' : 0.0}
+                t2 = {'name' : 't2', 'value' : 200.0, 'min' : 0.0}
+                y0 = {'name' : 'y0', 'value' : 0.0, 'min' : 0.0}
+                parameters.append(P2)
+                parameters.append(t2)
+                parameters.append(y0)
+            elif (model == 'grow_decay_offset') :
+                TOFF = {'name' : 'TOFF', 'value' : 0.0}
+                parameters.append(TOFF)
         else:
             parameters = pars
+        print(parameters, model)
 
         df = DecayFitter()
 
