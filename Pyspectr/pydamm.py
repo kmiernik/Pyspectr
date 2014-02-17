@@ -571,7 +571,8 @@ class Experiment:
         all histograms with title matching all the strings (AND operation)."""
         if his_id is None:
             for key in sorted(self.hisfile.histograms.keys()):
-                print('{: <6} {}'.format(key, 
+                print('{: <6} {: <3} {}'.format(key, 
+                                    self.hisfile.histograms[key]['dimension'],
                                     self.hisfile.histograms[key]['title']))
         else:
             if isinstance(his_id, int):
@@ -604,11 +605,13 @@ class Experiment:
                                 break
                         else:
                             is_found = True
-                            print('{: <6} {}'.format(his_i, title)) 
+                            print('{: <6} {: <3} {}'.format(his_i,
+                                                        histo['dimension'],
+                                                        title)) 
                     if not is_found:
                         print('No matching histogram title found')
                 except AttributeError:
-                    print('his_id must be a integer, string or a\
+                    print('his_id must be an integer, string or a\
                             list of strings')
             else:
                 print('his_id must be a integer, string or list of strings')
