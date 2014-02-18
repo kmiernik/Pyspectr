@@ -1008,7 +1008,7 @@ class Experiment:
             self.dd(-1, xc=Experiment.xlim2d, yc=Experiment.ylim2d)
 
 
-    def fit_peaks(self, his=None, rx=None, clear=True):
+    def fit_peaks(self, his=None, rx=None, clear=True, width=None):
         """
         Fit gaussian peaks to 1D plot. If his is not given the
         current plot is used. If rx is not given, the current range is used
@@ -1035,8 +1035,7 @@ class Experiment:
             if rx[0] <= p.get('E') <= rx[1]:
                 peaks.append(p)
 
-        PF = PeakFitter(peaks, 'linear', '')
-
+        bin_size = 1
         if his is not None:
             if isinstance(his, int):
                 if his > 0:
@@ -1054,6 +1053,7 @@ class Experiment:
                         x_axis = Experiment.plots[his].histogram.x_axis
                         weights = Experiment.plots[his].histogram.weights
                         title = Experiment.plots[his].histogram.title
+                        bin_size = Experiment.plots[his].bin_size
                     except IndexError:
                         print('There is no plot in the registry under the',
                               'number', his, 'use show_registry() to see',
@@ -1063,6 +1063,7 @@ class Experiment:
             x_axis = Experiment.plots[-1].histogram.x_axis
             weights = Experiment.plots[-1].histogram.weights
             title = Experiment.plots[-1].histogram.title
+            bin_size = Experiment.plots[-1].bin_size
 
         dweights = self._standard_errors_array(weights)
 
@@ -1081,11 +1082,20 @@ class Experiment:
         # registry.
         self.plotter.plot1d(plot_data, xlim=rx)
 
-        fit_result = PF.fit(x_axis[rx[0]:rx[1]], weights[rx[0]:rx[1]],
-                            dweights[rx[0]:rx[1]])
+        bound_x = rx
+        if bin_size != 1:
+            bound_x = (int(rx[0] / bin_size),
+                       int(rx[1] / bin_size))
+
+        PF = PeakFitter(peaks, 'linear', '')
+
+        fit_result = PF.fit(x_axis[bound_x[0]:bound_x[1]], 
+                            weights[bound_x[0]:bound_x[1]],
+                            dweights[bound_x[0]:bound_x[1]],
+                            width=width)
 
         histo_baseline = histogram.Histogram()
-        histo_baseline.x_axis = x_axis[rx[0]:rx[1]]
+        histo_baseline.x_axis = x_axis[bound_x[0]:bound_x[1]]
         histo_baseline.weights = fit_result['baseline']
         histo_baseline.title = 'Baseline'
         plot_baseline = Plot(histo_baseline, 'function', True)
@@ -1111,8 +1121,6 @@ class Experiment:
             ylim = Experiment.ylim
 
         self.plotter.plot1d(plot_peaks, xlim=rx, ylim=ylim)
-
-
 
         print('#{:^8} {:^8} {:^8} {:^8} {:^8} {:^8} {:^8}'
                 .format('Peak', 'x0', 'dx', 'A', 'dA', 's', 'Area'))

@@ -85,9 +85,12 @@ class SpectrumParser:
                 data_dy = numpy.array(data_dy)
 
             if smin is not None and smax is not None:
-                PF.restrict_width(float(smin), float(smax))
+                width = [float(smin), float(smax)]
+            else:
+                width = None
 
-            fit_result = PF.fit(data_x, data_y, data_dy, show, pause)
+            fit_result = PF.fit(data_x, data_y, data_dy, show, pause,
+                                width=width)
 
             if show == 'plot' or show == 'svg':
                 plt.clf()
