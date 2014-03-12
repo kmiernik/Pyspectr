@@ -1158,6 +1158,23 @@ class Experiment:
         * pars is a list of dictionaries (one dict per each parameter)
         (optional, use if model is different than the default one, see
         decay_fitter for details)
+
+        If default fits are not working, more manual steering of the
+        parameters may be neede. In this case the procedure is as follows:
+        1. Create dictionary for each paramter of the model, 
+        change their default value, range and variance, etc.
+        e.g.
+            T0 = {'name' : 'T0', 'value' : cycle[0], 'vary' : False}
+            T1 = {'name' : 'T1', 'value' : cycle[1], 'vary' : False}
+            T2 = {'name' : 'T1', 'value' : cycle[2], 'vary' : False}
+            P1 = {'name' : 'P1', 'value' : 100.0, min='0.0', max='1000.0'}
+            t1 = {'name' : 't1', 'value' : 100.0}
+            P2 = {'name' : 'P2', 'value' : 100.0}
+            t2 = {'name' : 't2', 'value' : 100.0}
+        2. Create a tuple of parameters
+            pars2 = [T0, T1, T2, P1, t1, P2, t2]
+        3. Call fit_decay passing the tuple
+            e.fit_decay(2681, gate, cycle, model='decay_only2', pars=pars2)
             
         """
         if pars is None:
@@ -1192,6 +1209,9 @@ class Experiment:
             elif (model == 'grow_decay_offset') :
                 TOFF = {'name' : 'TOFF', 'value' : 0.0}
                 parameters.append(TOFF)
+            else:
+                print('Unknown fit model', model)
+                return None
         else:
             parameters = pars
         print(parameters, model)
