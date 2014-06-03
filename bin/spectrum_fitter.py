@@ -67,10 +67,17 @@ class SpectrumParser:
             if self.file_type == 'txt':
                 data_x = self.data_file[x_min:x_max, 0]
                 data_y = self.data_file[x_min:x_max, 1]
-                data_dy = self.data_file[x_min:x_max, 2]
-                for iy, y in enumerate(data_dy):
-                    if y <= 0:
-                        data_dy[iy] = 1.0
+                if self.data_file.shape[1] == 2:
+                    data_dy = []
+                    for y in data_y:
+                        dy = numpy.sqrt(y) if y > 0 else 1.0
+                        data_dy.append(dy)
+                    data_dy = numpy.array(data_dy)
+                else:
+                    data_dy = self.data_file[x_min:x_max, 2]
+                    for iy, y in enumerate(data_dy):
+                        if y <= 0:
+                            data_dy[iy] = 1.0
 
             elif self.file_type == 'his':
                 data = self.data_file.load_histogram(spectrum_id)
@@ -89,8 +96,7 @@ class SpectrumParser:
             else:
                 width = None
 
-            fit_result = PF.fit(data_x, data_y, data_dy, show, pause,
-                                width=width)
+            fit_result = PF.fit(data_x, data_y, data_dy, width=width)
 
             if show == 'plot' or show == 'svg':
                 plt.clf()
@@ -100,7 +106,7 @@ class SpectrumParser:
                 plt.plot(data_x, fit_result['baseline'], linestyle='--')
                 plt.plot(fit_result['x_axis'], fit_result['fit'], linewidth=1.0)
                 if show == 'svg':
-                    svg_name = 'fit_{0}_{1}-{2}'.format(self.plot_name,
+                    svg_name = 'fit_{0}_{1}_{2}'.format(plot_name,
                                                 int(data_x[0]), int(data_x[-1]))
                     svg_name = svg_name.replace('.', '').\
                             replace('/', '') + '.svg'
@@ -145,7 +151,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    plt.ion()
     plt.show()
     show = 'plot'
     if args.svg:

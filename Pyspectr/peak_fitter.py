@@ -159,8 +159,7 @@ class PeakFitter:
         self.params['a0'].value = y0 - x0 * self.params['a1'].value
 
 
-    def fit(self, data_x, data_y, data_dy, show='plot', pause=0,
-            width=None):
+    def fit(self, data_x, data_y, data_dy, width=None):
         """
         Fit peaks in the data, returns x_axis points, baseline (background) 
         and fit (peaks) data points. The parameters of the fit (peaks parameters)

@@ -1184,7 +1184,7 @@ class Experiment:
             P1 = {'name' : 'P1', 'value' : 100.0}
             t1 = {'name' : 't1', 'value' : 100.0}
             parameters = [T0, T1, T2, P1, t1]
-            if  model == 'decay_only':
+            if  model == 'grow_decay' or 'decay_only':
                 pass
             elif (model == 'grow_decay2' or
                   model == 'grow_decay_isomer' or
@@ -1272,7 +1272,18 @@ class Experiment:
                        bin_size=bin_size, plot=False )
         ranges = (0, 600, 1200, 2000, 4000)
         self.plotter.plot1d_4panel(plot, ranges)
+    
 
+    def t12(self, params, scale=0.01, name='t1'):
+        """
+        Calculate half-life from tau. Takes parameters returned from
+        fit_decay function and scale in seconds per channel.
+
+        """
+        tau = params[name]                                
+        print('{:.3f} +/- {:.3f} s'.
+              format(tau.value * math.log(2) * scale,
+                     tau.stderr * math.log(2) * scale))
 
 
 if __name__ == "__main__":
