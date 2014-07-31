@@ -127,6 +127,8 @@ class SpectrumParser:
                 s = PF.params['s{}'.format(i)].value
                 E = peaks[i].get('E')
                 name = peaks[i].get('name')
+                if name is None:
+                    name = ""
                 Area = PF.find_area(data_x, i)
                 print('{:>8} {:>8} {:>8.2f} {:>8.2f}'.\
                         format(name, E, x0, dx), 

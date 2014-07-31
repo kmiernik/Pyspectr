@@ -4,12 +4,12 @@
     <!--
     <data_file name="some_file">
         <spectrum id="2500,2510" min="50" max="150" baseline="linear">
-            <peak E="115" model="gauss"/>
-            <peak E="130" model="gauss_l"/>
+            <peak name="115" E="115" model="gauss"/>
+            <peak name="115" E="130" model="gauss_l"/>
         </spectrum>
         <spectrum id="2700,2710" min="50" max="150" baseline="linear">
-            <peak E="115" model="gauss"/>
-            <peak E="130" model="gauss_l"/>
+            <peak name="115" E="115" model="gauss"/>
+            <peak name="115" E="130" model="gauss_l"/>
         </spectrum>
     </data_file>
     -->
@@ -23,9 +23,9 @@
             <peak E="1435" model="gauss"/>
         </spectrum>
         <spectrum id="" min="50" max="100" baseline="quadratic">
-            <peak E="70" />
-            <peak E="75" model="gauss"/>
-            <peak E="85" model="gauss"/>
+            <peak name="PbX1" E="70" />
+            <peak name="PbX2" E="75" model="gauss"/>
+            <peak name="PbX3" E="85" model="gauss"/>
         </spectrum>
     </data_file>
 </config>
