@@ -112,6 +112,7 @@ class SpectrumParser:
                             replace('/', '') + '.svg'
                     plt.savefig(svg_name)
                 else:
+                    plt.show()
                     plt.draw()
                     time.sleep(pause)
             elif show == 'quiet':
@@ -153,7 +154,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    plt.show()
     show = 'plot'
     if args.svg:
         show = 'svg'

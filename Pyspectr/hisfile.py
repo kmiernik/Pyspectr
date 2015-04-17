@@ -7,12 +7,12 @@ This module handles the HIS/DRR data files.
 
 """
 
+import datetime
 import numpy
 import os
 import struct
 import sys
 import tarfile
-
 from array import array
 
 from Pyspectr.exceptions import GeneralError as GeneralError
@@ -35,8 +35,12 @@ class HisFile:
         self.rounding = rounding
         self.histograms = {}
         self._tmp_files = []
-        self.load(file_name)
-        self.file_name = file_name
+        self.base_name = os.path.splitext(file_name)[0]
+        if os.path.exists(file_name):
+            self.load(file_name)
+            self.exists = True
+        else:
+            self.exists = False
 
 
     def __del__(self):
@@ -55,7 +59,7 @@ class HisFile:
         try:
             tar = tarfile.open(file_name, "r:gz")
         except (tarfile.ReadError, IOError):
-            self._load_normal(file_name)
+            self._load_normal()
         else:
             self._untar(tar)
             self._load_normal(self._tmp_files[0])
@@ -89,12 +93,11 @@ class HisFile:
         tar.close()
 
 
-    def _load_normal(self, file_name):
+    def _load_normal(self):
         """Loads .drr file to get list of available histograms
 
         """
-        name_without_ext = os.path.splitext(file_name)[0]
-        with open('{}{}'.format(name_without_ext, '.drr'), 'rb') as drr_file:
+        with open('{}{}'.format(self.base_name, '.drr'), 'rb') as drr_file:
             # ID text, number of histograms, number of half-words
             header = drr_file.read(20)
             initid, n_histograms, n_halfwords = struct.unpack('<12sII', header)
@@ -152,7 +155,6 @@ class HisFile:
                                     [his_id, his_list[block_index * 32 + index]]
 
             self.histograms = {x[0] : x[1] for x in his_list}
-            self.base_name = name_without_ext
 
 
     @property
@@ -232,6 +234,251 @@ class HisFile:
             return [1, x_axis, None, data]
         else:
             return [2, x_axis, y_axis, data]
+
+
+    def declare_histogram_1d(self, his_id, x_size, title):
+        """Declaration of a new 1D histogram"""
+        self._has_drr_changed = True
+        self.histograms[his_id] = {
+                'dimension' : 1,
+                'half_words_per_ch' : 2,
+                'title' : title,
+                'offset' : -1,
+                'scaled' : [x_size, 0, 0, 0],
+                'minc' : [0, 0, 0, 0],
+                'maxc' : [x_size - 1, 0, 0, 0]
+                }
+
+
+    def declare_histogram_2d(self, his_id, x_size, y_size, title):
+        """Declaration of a new 2D histogram"""
+        self._has_drr_changed = True
+        self.histograms[his_id] = {
+                'dimension' : 2,
+                'half_words_per_ch' : 2,
+                'title' : title,
+                'offset' : -1,
+                'scaled' : [x_size, y_size, 0, 0],
+                'minc' : [0, 0, 0, 0],
+                'maxc' : [x_size - 1, y_size - 1, 0, 0]
+                }
+
+
+    def plot(self, his_id, x, y=None, n=1):
+        """Adds n to bin x (x, y) to histogram his_id"""
+        his_file = open('{}.his'.format(self.base_name), 'r+b')
+        half_words =  self.histograms[his_id]['half_words_per_ch']
+
+        if self.histograms[his_id]['dimension'] == 1:
+            x_size = self.histograms[his_id]['scaled'][0]
+            ix = int(x + self._dx)
+            if ix < 0 or ix >= x_size:
+                raise GeneralError('His ID: {}, value {} out of range'.
+                        format(his_id, x))
+
+            his_file.seek(self.histograms[his_id]['offset'] * 2 + 
+                        ix * half_words * 2, 0)
+            if half_words == 1:
+                data_type = 'H'
+            elif half_words == 2:
+                data_type = 'I'
+            else:
+                raise GeneralError(
+                        'His ID: {}, unsupported half words per ch = {}'.
+                        format(his_id, half_words)
+                        )
+            value = array(data_type)
+            value.fromfile(his_file, 1)
+            his_file.seek(self.histograms[his_id]['offset'] * 2 + 
+                        ix * half_words * 2, 0)
+            his_file.write(struct.pack(data_type, value[0] + n))
+
+        else:
+            x_size = self.histograms[his_id]['scaled'][0]
+            y_size = self.histograms[his_id]['scaled'][1]
+            ix = int(x + self._dx)
+            iy = int(y + self._dx)
+            if (iy < 0 or iy >= y_size or ix < 0 or ix > x_size):
+                raise GeneralError('His ID: {}, value {} out of range'.
+                        format(his_id, y))
+
+            his_file.seek(self.histograms[his_id]['offset'] * 2 + 
+                        ix * half_words * 2 +
+                        iy * self.histograms[his_id]['scaled'][0] *
+                        half_words * 2, 0)
+            if half_words == 1:
+                data_type = 'H'
+            elif half_words == 2:
+                data_type = 'I'
+            else:
+                raise GeneralError(
+                        'His ID: {}, unsupported half words per ch = {}'.
+                        format(his_id, half_words)
+                        )
+            value = array(data_type)
+            value.fromfile(his_file, 1)
+            his_file.seek(self.histograms[his_id]['offset'] * 2 + 
+                        ix * half_words * 2 +
+                        iy * self.histograms[his_id]['scaled'][0] *
+                        half_words * 2, 0)
+            his_file.write(struct.pack(data_type, value[0] + n))
+
+        his_file.close()
+
+
+    def create(self):
+        self._create_drr()
+        self._create_empty_his()
+   
+
+    def _create_drr(self):
+        """Create drr file based on current list of histograms"""
+        drr_file = open('{}.drr'.format(self.base_name), 'wb')
+
+        initid = array('B')
+        for l in 'HHIRFDIR0001':
+            initid.append(ord(l))
+        initid.tofile(drr_file)
+
+        n_histograms = len(self.histograms)
+        n_halfwords = 0
+        histograms_id = []
+        for his_id, his in self.histograms.items():
+            if his['dimension'] == 1:
+                n_halfwords += (his['scaled'][0] * his['half_words_per_ch'])
+            else:
+                n_halfwords += (his['scaled'][0] * his['scaled'][1] *
+                                his['half_words_per_ch'])
+            histograms_id.append(his_id)
+        drr_file.write(struct.pack('<II', n_histograms, n_halfwords))
+
+        now = datetime.datetime.now()
+        date = array('I')
+        date.append(0)
+        date.append(now.year)
+        date.append(now.month)
+        date.append(now.day)
+        date.append(now.hour)
+        date.append(now.minute)
+        date.tofile(drr_file)
+
+        garbage = array('b')
+        for i in range(84):
+            garbage.append(0)
+        garbage.tofile(drr_file)
+
+        offset = 0
+        for his_id, his in self.histograms.items():
+            record = array('H')
+            # Dimension
+            record.append(his['dimension'])
+            # Half-words (2-bytes long) per channel - we use uint32 all the way
+            record.append(2)
+            # Parameter id numbers - we use all 0
+            record.append(0)
+            record.append(0)
+            record.append(0)
+            record.append(0)
+            # Raw length
+            record.append(his['scaled'][0])
+            record.append(his['scaled'][1])
+            record.append(his['scaled'][2])
+            record.append(his['scaled'][3])
+            # Scaled length - we use same as raw
+            record.append(his['scaled'][0])
+            record.append(his['scaled'][1])
+            record.append(his['scaled'][2])
+            record.append(his['scaled'][3])
+            # Min channel number
+            record.append(his['minc'][0])
+            record.append(his['minc'][1])
+            record.append(his['minc'][2])
+            record.append(his['minc'][3])
+            # Max channel number
+            record.append(his['maxc'][0])
+            record.append(his['maxc'][1])
+            record.append(his['maxc'][2])
+            record.append(his['maxc'][3])
+
+            # Write the whole record to file
+            record.tofile(drr_file)
+
+            # Location in his file (in 2-bytes units)
+            drr_file.write(struct.pack('<I', offset))
+            his['offset'] = offset
+
+            # X axis label (empty)
+            label = array('B')
+            for i in range(12):
+                label.append(0)
+            label.tofile(drr_file)
+
+            # Y axis label (empty)
+            label.tofile(drr_file)
+
+            # X axis calibration (empty)
+            calibration = array('f')
+            calibration.append(0)
+            calibration.append(0)
+            calibration.append(0)
+            calibration.append(0)
+            calibration.tofile(drr_file)
+
+            # Histogram title
+            name = his['title']
+            title = array('B')
+            l = 0
+            while l < 40:
+                if l < len(name):
+                    title.append(ord(name[l]))
+                else:
+                    title.append(0)
+                l += 1
+            title.tofile(drr_file)
+
+            # Calculate offset
+            if his['dimension'] == 1:
+                offset += his['scaled'][0] * his['half_words_per_ch']
+            elif his['dimension'] == 2:
+                offset += (his['scaled'][0] * his['scaled'][1] *
+                           his['half_words_per_ch'])
+            else:
+                raise GeneralError('Dimension larger than 2 not supported')
+        
+        # Write a list of histograms ID in 128 bytes long block
+        # each build of 32 records of 4 bytes long
+        index = 0
+        while index < len(histograms_id):
+            block = array('I', [0] * 32)
+            for i in range(32):
+                if index < len(histograms_id):
+                    block[i] = histograms_id[index]
+                index += 1
+            block.tofile(drr_file)
+
+        drr_file.close()
+   
+
+    def _create_empty_his(self):
+        """Create empty his file based on current list of histograms"""
+        his_file = open('{}.his'.format(self.base_name), 'wb')
+
+        for his_id, his in self.histograms.items():
+            if his['half_words_per_ch'] == 1:
+                array_type = 'H'
+            elif his['half_words_per_ch'] == 2:
+                array_type = 'I'
+
+            if his['dimension'] == 1:
+                data = array(array_type, [0] * his['scaled'][0])
+                data.tofile(his_file)
+            elif his['dimension'] == 2:
+                data = array(array_type,
+                        [0] * his['scaled'][0] * his['scaled'][1])
+                data.tofile(his_file)
+
+        his_file.close() 
+
 
 
 if __name__ == "__main__":

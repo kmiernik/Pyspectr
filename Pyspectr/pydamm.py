@@ -12,6 +12,7 @@ DAMM programm.
 import math
 import numpy
 import sys
+import string
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
@@ -371,8 +372,10 @@ class Experiment:
                         print('{} is not a 1D histogram'.format(his))
                         return None
                     title = self.hisfile.histograms[his]['title'].strip()
+                    f_title = ''.join(
+                            filter(lambda x:x in string.printable, title))
                     title = '{}:{}'.format(his, 
-                                           self._replace_latex_chars(title))
+                                           self._replace_latex_chars(f_title))
                     histo = histogram.Histogram()
                     histo.title = title
                     histo.x_axis = data[1]
@@ -914,8 +917,10 @@ class Experiment:
                     return None
 
                 title = self.hisfile.histograms[his]['title'].strip()
+                f_title = ''.join(
+                        filter(lambda x:x in string.printable, title))
                 title = '{}:{}'.format(his, 
-                                       self._replace_latex_chars(title))
+                                       self._replace_latex_chars(f_title))
                 histo = histogram.Histogram(dim=2)
                 histo.title = title
                 histo.x_axis = data[1]
