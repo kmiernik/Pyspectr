@@ -62,7 +62,7 @@ class HisFile:
             self._load_normal()
         else:
             self._untar(tar)
-            self._load_normal(self._tmp_files[0])
+            self._load_normal()
 
 
     def _untar(self, tar):

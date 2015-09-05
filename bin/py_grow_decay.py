@@ -288,15 +288,15 @@ if __name__ == '__main__':
                 print('{} {:.3f} +/- {:.3f}'.format(key, par.value, par.stderr))
             print()
 
-            time = numpy.arange(0, params['T2'].value, 
-                                (params['T2'].value) / 200)
+            time = numpy.arange(0, result.params['T2'].value, 
+                                (result.params['T2'].value) / 200)
 
             fig = plt.figure(fig_index, (9, 6))
             fig_index += 1
 
             ax1 = plt.subplot(2, 1, 1)
             ax1.set_ylabel('Counts')
-            ax1.set_xlim(0, params['T2'].value)
+            ax1.set_xlim(0, result.params['T2'].value)
             ax1.errorbar(data_x, data_y, data_dy, fmt='o', markersize=4,
                         markerfacecolor='none', markeredgecolor='blue',
                         label="Data '{}'".format(inputfile.getAttribute('name').replace('_', '\_')))
@@ -306,12 +306,12 @@ if __name__ == '__main__':
             ax1.legend(loc='best', fontsize='small')
 
             ax2 = plt.subplot(2, 1, 2)
-            ax2.set_xlim(0, params['T2'].value)
+            ax2.set_xlim(0, result.params['T2'].value)
             ax2.errorbar(data_x[0:ix_high], 
                     data_y[0:ix_high] - 
                     fitfunc(result.params, data_x[0:ix_high]),
                     data_dy[0:ix_high], fmt='o')
-            ax2.axhline(xmin=0, xmax=params['T2'].value,
+            ax2.axhline(xmin=0, xmax=result.params['T2'].value,
                        color="black")
             ax2.set_ylabel(r'$\Delta$(Data - Fit)')
             ax2.set_xlabel('Time (s)')

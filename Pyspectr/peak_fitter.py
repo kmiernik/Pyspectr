@@ -171,6 +171,7 @@ class PeakFitter:
             self._restrict_width(width[0], width[1])
         result = minimize(self.residual, self.params, 
                           args=(data_x, data_y, data_dy))
+        self.params = result.params
 
         x = numpy.linspace(data_x[0], data_x[-1], 1000)
         y0 = self.fit_func(self.params, x)

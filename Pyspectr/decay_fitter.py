@@ -283,8 +283,9 @@ class DecayFitter:
         for key, par in result.params.items():
             print('{} {:.3f} +/- {:.3f}'.format(key, par.value, par.stderr))
         print()
-        time = numpy.arange(params['T0'].value, params['T2'].value, 
-                            (params['T2'].value) / 200)
+        time = numpy.arange(result.params['T0'].value, 
+                            result.params['T2'].value, 
+                            (result.params['T2'].value) / 200)
         counts = self.fitfunc(result.params, time)
         return (time, counts, result.params)
 
