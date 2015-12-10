@@ -1158,8 +1158,21 @@ class Experiment:
         (0, 100, 300)
         * t_bin: is a binning parameter (optional)
         * time_range: is a gate in time in (t0, t1) format (optional)
-        * model: is a model used for fit (see decay_fitter)
-                 (default is 'grow_decay')
+        * model: is a model used for fit (default is 'grow_decay')
+                 available are:
+                    * 'grow_decay' : simple grow-in and decay scheme
+                    * 'grow_decay_flash' : extra flash of beam in the
+                                            begining of the cycle
+                    * 'grow_decay2' :  second isotope in chain
+                    * 'grow_decay2_bg' : second isotope in chain plus background
+                    * 'grow_decay_isomer' : two half-lives of one line
+                                            (possible decaying isomer)
+                    * 'grow_decay_diffusion' : additional ion escape from the
+                                               tape 
+                    * 'decay_only' : decay part only
+                    * 'decay_only2' : decay part only (second in chain)
+                    * 'grow_decay_offset' : grow decay with cycle offset
+
         * pars is a list of dictionaries (one dict per each parameter)
         (optional, use if model is different than the default one, see
         decay_fitter for details)

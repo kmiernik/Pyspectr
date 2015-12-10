@@ -71,6 +71,33 @@ Finally remember about the python's build-in help(), that should allow you to
 investigate the available variables and methods. While the documentation is
 far from being perfect, at least it should give you a hint about possibilities.
 
+Histogram manipulations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The plotting functions return Plot objects (or list of Plots). Each Plot
+object contains bin size, normalization and a Histogram object. Histogram
+object contains X and Y axis bins positions and a 'weights' table with numbers
+of counts per bin (a numpy array). This can be used to manipulate histrogram.
+
+Below is an example of gamma-gamma analysis with a background substraction. The
+background is taken in two separate regions that togheter have the same width
+as the gate set on the transition.
+
+Suppose that spectrum 2660 is a gamma-gamma matrix. The line is in channels
+305 to 308, the background in 302-302 and 310-311
+
+>>> line = e.gy(2660, (305, 308))
+>>> bg1 = e.gy(2660, (302, 303))
+>>> bg2 = e.gy(2660, (310, 311))
+>>> line.histogram.weights -= (bg1.histogram.weights + bg2.histogram.weights)
+
+Now the "line" object is a background subtracted spectrum that can be plotted
+
+>>> e.d(line)
+
+Notice that access to 'weights' allow also to apply normalizations 
+calculated in selected regions and other more sophisticated operations.
+
 spectrum_fitter
 ---------------
 
