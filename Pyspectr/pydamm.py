@@ -1202,7 +1202,7 @@ class Experiment:
             P1 = {'name' : 'P1', 'value' : 100.0}
             t1 = {'name' : 't1', 'value' : 100.0}
             parameters = [T0, T1, T2, P1, t1]
-            if  model == 'grow_decay' or 'decay_only':
+            if  model == 'grow_decay' or model == 'decay_only':
                 pass
             elif (model == 'grow_decay2' or
                   model == 'grow_decay_isomer' or
