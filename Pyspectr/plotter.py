@@ -159,12 +159,12 @@ class Plotter:
         w = plot.histogram.weights
 
         if xc is not None:
-            x = x[xc[0]:xc[1]]
-            w = w[xc[0]:xc[1],:]
+            x = x[int(xc[0]):int(xc[1])]
+            w = w[int(xc[0]):int(xc[1]),:]
 
         if yc is not None:
-            y = y[yc[0]:yc[1]]
-            w = w[:, yc[0]:yc[1]]
+            y = y[int(yc[0]):int(yc[1])]
+            w = w[:, int(yc[0]):int(yc[1])]
 
         initial_nx = len(x)
         initial_ny = len(y)

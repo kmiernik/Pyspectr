@@ -1303,6 +1303,61 @@ class Experiment:
               format(tau.value * math.log(2) * scale,
                      tau.stderr * math.log(2) * scale))
 
+    def sum(self, xlim=None, ylim=None):
+        """
+        Print sum of counts for active plots in the given xlim (tuple (x0, x1))
+        or xlim, ylim for 2D. If xlim is not given the current window is taken
+        as limits.
+        """
+        result = []
+        if Experiment._mode == 1:
+            for plot in Experiment.plots:
+                if not(plot.active):
+                    continue
+                if xlim is None:
+                    if Experiment.xlim is None:
+                        x0 = 0
+                        x1 = len(plot.histogram.x_axis) - 1
+                    else:
+                        x0 = int(Experiment.xlim[0])
+                        x1 = int(Experiment.xlim[1])
+                else:
+                    x0 = xlim[0]
+                    x1 = xlim[1]
+                s = plot.histogram.weights[x0:x1].sum()
+                result.append(s)
+                print(plot.histogram.title.strip(), ':', s)
+        elif Experiment._mode == 2:
+            for plot in Experiment.maps:
+                if not(plot.active):
+                    continue
+                if xlim is None:
+                    if Experiment.xlim2d is None:
+                        x0 = 0
+                        x1 = len(plot.histogram.x_axis) - 1
+                    else:
+                        x0 = int(Experiment.xlim2d[0])
+                        x1 = int(Experiment.xlim2d[1])
+                else:
+                    x0 = xlim[0]
+                    x1 = xlim[1]
+                if ylim is None:
+                    if Experiment.ylim2d is None:
+                        y0 = 0
+                        y1 = len(plot.histogram.y_axis) - 1
+                    else:
+                        y0 = int(Experiment.ylim2d[0])
+                        y1 = int(Experiment.ylim2d[1])
+                else:
+                    y0 = ylim[0]
+                    y1 = ylim[1]
+                s = plot.histogram.weights[x0:x1, y0:y1].sum()
+                result.append(s)
+                print(plot.histogram.title.strip(), ':', s)
+        return result
+
+
+
 
 if __name__ == "__main__":
     pass
