@@ -258,9 +258,17 @@ class Experiment:
                 print('List of normalization factors must be of the same' +
                       ' length as the list of histograms')
                 return None
+        elif isinstance(norm, tuple):
+            if len(norm) == 2:
+                for i in range(num_of_args):
+                    normalization.append(norm)
+            else:
+                print("Tuple of normalization ranges must be of length of 2")
+                print(norm, ' was given')
+                return None
         else:
             print("Normalization must be a float, ",
-                  "list of floats or a 'area' string")
+                  "list of floats, tuple of ints, or an 'area' string")
             print(norm, ' was given')
             return None
         return normalization
@@ -326,11 +334,17 @@ class Experiment:
                         (note also mandatory quatation marks)
                         is interpreted as a range of histograms ids
 
-        * norm: may be given as a single float or int value or an 'area' string,
-                also a list of lenght matching the *args list may be used
-                with any combination of the above accepted values
+        * norm: may be given as:
+                - a single float or int: all histograms are divided
+                by the same value
+                - a tuple of length of 2 (e.g. (50, 150)): all histograms
+                are divided by number of counts in the selected area
+                - an 'area' string: all histograms are divided by 
+                the total number of counts
+                - a list of lenght matching the *args list: each histogram
+                is divided by a given value
         * bin_size: must be an integer, a list of ints is 
-                    also accepted (see norm)
+                    also accepted (see norm, last option)
         * clear: is True by default, which means that previous plot is 
                  cleared if False is given, the previous plots are not cleared.
 

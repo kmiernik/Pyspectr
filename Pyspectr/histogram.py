@@ -110,9 +110,17 @@ class Histogram:
                 print('Warning: normalization 0 overridden, using 1 instead')
             else:
                 normalization = norm
+        elif isinstance(norm, tuple):
+            xmin = norm[0]
+            xmax = norm[1]
+            normalization = histo.weights[xmin:xmax].sum()
+            if normalization == 0:
+                print('Warning: normalization 0 overridden,' + 
+                        ' using 1 instead')
+                normalization = 1
         else:
             raise GeneralError("Normalization must be int," + 
-                               " float or 'area' string")
+                               " float, tuple of ints, or an 'area' string")
 
         histo.title = '{}, / {:.2e}'.format(self.title, 
                                            normalization * bin_size)
