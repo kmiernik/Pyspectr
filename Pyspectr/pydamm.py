@@ -837,6 +837,142 @@ class Experiment:
             self.plotter.plot1d(gate_plot, Experiment.xlim, ylim)
 
         return gate_plot
+    
+
+    def _is_inside(self, x, y, poly):
+        """Checks if point x, y is inside a poly(gon), uses x-ray method"""
+
+        n_intersections = 0
+
+        for i, pi in enumerate(poly):
+            if i == len(poly) - 1:
+                pj = poly[0]
+            else:
+                pj = poly[i + 1]
+            if (x == pi[0] and y == pi[1]) or (x == pj[0] and y == pj[1]):
+                return False
+            if pi[1] == pj[1]:
+                continue
+
+            if ((y <= pi[1] and y <= pj[1]) or (y > pi[1] and y > pj[1])):
+                continue
+
+            xs = (y - pi[1]) / (pj[1] - pi[1]) * (pj[0] - pi[0]) + pi[0]
+
+            if (xs <= x):
+                n_intersections += 1
+
+        if n_intersections % 2 == 0:
+            return False
+        else:
+            return True
+
+    
+    def _rectangle(self, poly):
+        """Returns rectangle perpenticular to X and Y axis around the polygon
+        in the form x_low, y_low, x_high, y_high
+        """
+        x_poly = sorted(poly, key=lambda x: x[0])
+        y_poly = sorted(poly, key=lambda x: x[1])
+        return x_poly[0][0], y_poly[0][1], x_poly[-1][0], y_poly[-1][1]
+
+
+    def polygon(self, his, poly, axis='x', norm=1,
+           bin_size=1, clear=True, plot=True):
+        """Make projection on X (Y) axis of a 2D histogram with gate
+        defined by a polygon.
+
+        his: is a histogram id in a file
+        poly : polygon defined as a list of (xi, yi) points
+        axis : 'x' for projection on X, and 'y' for projection on Y axis
+        norm: normalization factor (see d())
+        bin_size: binning factor (see d())
+        clear: True by default, clears previous plots
+        plot: True by default, if False no plotting is taking place, 
+              only the plot object is being returned
+        
+        """
+        if poly is None or len(gate_x) < 3:
+            print('Please give polygon with at least 3 vertices')
+            return None
+
+        if axis == 'x' or axis == 'X':
+            x_projection = True
+        elif axis == 'y' or axis == 'Y':
+            x_projection = False
+        else:
+            print('Unknown axis', axis, 'plese select "x" or "y"')
+            return None
+
+        # If clear flag used, clear the plotting area
+        if clear and plot:
+            self.plotter.clear()
+
+        # Switch mode to 1D
+        self.mode = 1
+        # Deactivate all plots if clear flag is used
+        if clear and plot:
+            for p in Experiment.plots:
+                p.active = False
+
+        data = self.hisfile.load_histogram(his)
+        if data[0] != 2:
+            print('{} is not a 2D histogram'.format(his))
+            return None
+
+        # x for x_axis data
+        # y for y_axis data
+        # w for weights
+        # g for gate (result)
+        # bg for background gate
+        x = data[1]
+        y = data[2]
+        w = data[3]
+
+        # create projection here
+        x0, y0, x1, y1 = self._rectangle(poly)
+
+        if x_projection:
+            g = numpy.zeros(len(x))
+        else:
+            g = numpy.zeros(len(y))
+
+        for ix in range(x0, x1 + 1):
+            for iy in range(y0, y1 + 1):
+                if self._is_inside(ix, iy, poly):
+                    if x_projection:
+                        g[ix] += w[ix,iy]
+                    else:
+                        g[iy] += w[ix,iy]
+
+        dg = self._standard_errors_array(g)
+
+        # end of projection
+
+        title = '{}:{} polygon gate'.format(his, self.hisfile.\
+                                         histograms[his]['title'].strip())
+        title = self._replace_latex_chars(title)
+
+        histo = histogram.Histogram()
+        histo.title = title
+        histo.x_axis = y
+        histo.weights = g
+        histo.errors = dg
+        gate_plot = Plot(histo, 'histogram', True)
+        gate_plot.bin_size = bin_size
+        gate_plot.norm = norm
+
+        if plot:
+            Experiment.plots.append(gate_plot)
+            ylim = None
+            if self.ylim is None:
+                ylim = self._auto_scale_y()
+            else:
+                ylim = self.ylim
+            self.plotter.plot1d(gate_plot, Experiment.xlim, ylim)
+
+        return gate_plot
+
 
 
     def mark(self, x_mark):
