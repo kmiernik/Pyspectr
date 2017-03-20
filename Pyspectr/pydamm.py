@@ -115,6 +115,32 @@ class Plot:
 
 
 
+class ClickCatcher:
+    def __init__(self, fig, points):
+        self.fig = fig
+        self.cid = fig.canvas.mpl_connect('button_press_event', self)
+        self.data_x = []
+        self.data_y = []
+        self.points = points
+
+    def __call__(self, event):
+        # Ignore toolbar operations like zoom
+        state = self.fig.canvas.manager.toolbar._active
+        if state is not None:
+            self.fig.canvas.manager.toolbar._active = None
+            return None
+
+        if event.button == 1:
+            self.data_x.append(event.xdata)
+            self.data_y.append(event.ydata)
+            self.points.set_data(self.data_x, self.data_y)
+            self.fig.canvas.draw()
+            print('{:8.2f} {:8.2f}'.
+                format(event.xdata, event.ydata))
+        elif event.button == 3:
+            self.fig.canvas.mpl_disconnect(self.cid)
+
+
 class Experiment:
     """Main class for data visualization and analysis
 
@@ -892,7 +918,7 @@ class Experiment:
               only the plot object is being returned
         
         """
-        if poly is None or len(gate_x) < 3:
+        if poly is None or len(poly) < 3:
             print('Please give polygon with at least 3 vertices')
             return None
 
@@ -1506,7 +1532,12 @@ class Experiment:
                 print(plot.histogram.title.strip(), ':', s)
         return result
 
+    def c(self):
+        """Cursor mode - catches cliks on figure and prints the coordinates
+        of the points. Button 1 adds point, button 3 exits this mode. """
 
+        points, = plt.plot([0], [0], marker='.', ls='None', color='red')
+        clickcatcher = ClickCatcher(self.plotter.fig1, points)
 
 
 if __name__ == "__main__":

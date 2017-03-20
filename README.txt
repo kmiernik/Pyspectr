@@ -120,15 +120,20 @@ subtract a background gate
 * Fit peaks in current view
 >>> e.fit_peaks()
 
-* Fit peaks in histogram NNN, in range [A, B]
->>> e.fit_peaks(NNN, [A, B])
+* Fit peaks in histogram 100, in range [10, 210]
+>>> e.fit_peaks(100, [10, 210])
+
+* Use a cursor mode to print the position of some selected points in the 
+spectrum. Use 3rd button to quit this mode.
+>>> e.c()
 
 There are also some useful things that the DAMM couldn't do easily. Check
-functions like show_registry(), gamma_gamma_spectra(), fit_decay(), fit_peaks().
+functions like show_registry(), gamma_gamma_spectra(), fit_decay().
 
-Finally remember about the python's build-in help(), that should allow you to
-investigate the available variables and methods. While the documentation is
-far from being perfect, at least it should give you a hint about possibilities.
+Finally, remember about the python's build-in help() (also the ? in ipython),
+that should allow you to investigate the available variables and methods. While
+the documentation is far from being perfect, at least it should give you a hint
+about possibilities.
 
 Histogram manipulations
 ~~~~~~~~~~~~~~~~~~~~~~~

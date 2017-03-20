@@ -42,20 +42,21 @@ class Plotter:
         # Some selected color maps, you can toggle with toggle_color_map
         self.color_maps = [cm.RdYlGn_r, cm.binary, cm.hot, cm.spectral]
 
+        self.fig1 = None
         if size == 0:
             pass
         if size == 1:
-            plt.figure(1, (8, 6))
+            self.fig1 = plt.figure(1, (8, 6))
         elif size == 11:
-            plt.figure(1, (12, 8))
+            self.fig1 = plt.figure(1, (12, 8))
         elif size == 2:
-            plt.figure(1, (8, 6))
-            plt.figure(2, (8, 6))
+            self.fig1 = plt.figure(1, (8, 6))
+            self.fig2 = plt.figure(2, (8, 6))
         elif size == 12:
-            plt.figure(1, (12, 8))
-            plt.figure(2, (12, 8))
+            self.fig1 = plt.figure(1, (12, 8))
+            self.fig2 = plt.figure(2, (12, 8))
         else:
-            plt.figure(1, (8, 6))
+            self.fig1 = plt.figure(1, (8, 6))
 
         if size != 0:
             plt.tick_params(axis='both', labelsize=self.font_size)
