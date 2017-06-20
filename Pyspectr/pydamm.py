@@ -981,7 +981,10 @@ class Experiment:
 
         histo = histogram.Histogram()
         histo.title = title
-        histo.x_axis = y
+        if x_projection:
+            histo.x_axis = x
+        else:
+            histo.x_axis = y
         histo.weights = g
         histo.errors = dg
         gate_plot = Plot(histo, 'histogram', True)

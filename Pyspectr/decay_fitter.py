@@ -24,6 +24,7 @@ class DecayFitter:
                        'grow_decay_diffusion' : self.grow_decay_diffusion,
                        'decay_only' : self.decay_only,
                        'decay_only2' : self.decay_only2,
+                       'simple_decay' : self.simple_decay,
                        'grow_decay_offset' : self.grow_decay_offset}
 
 
@@ -100,6 +101,16 @@ class DecayFitter:
             else:
                 y.append(0)
         return numpy.array(y)
+
+
+    def simple_decay(self, params, data_x):
+        """For data with decay only"""
+        T0 = params['T0'].value
+        T2 = params['T2'].value
+        P = params['P'].value
+        t = params['t'].value
+        return P * numpy.exp(-(data_x - T0) / t)
+
 
 
     def decay_only2(self, params, data_x):
