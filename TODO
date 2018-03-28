@@ -1,9 +1,6 @@
 Core features:
 * Adding and subtracting plots (class method)
-* Normalization of 1D histograms on a selected range
-* "Banana" gates implementation like the one in readhis
-* Search for histograms using list() function (e.g list("beta") finds
-  all spectra with "beta" word included
+* Calibrate or calculate energy from channel number
 
 Documentation
 * Write good manual with examples

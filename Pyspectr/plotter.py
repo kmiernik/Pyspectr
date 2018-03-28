@@ -40,7 +40,7 @@ class Plotter:
         # Change this variable to another cmap if you need different colors
         self.cmap = cm.RdYlGn_r
         # Some selected color maps, you can toggle with toggle_color_map
-        self.color_maps = [cm.RdYlGn_r, cm.binary, cm.hot, cm.spectral]
+        self.color_maps = [cm.RdYlGn_r, cm.binary, cm.hot, cm.Spectral]
 
         self.fig1 = None
         if size == 0:

@@ -19,6 +19,7 @@ import matplotlib.cm as cm
 from collections import deque
 
 from Pyspectr import hisfile as hisfile
+from Pyspectr import xmlfile as xmlfile
 from Pyspectr import histogram as histogram
 from Pyspectr import plotter as plotter
 from Pyspectr.exceptions import GeneralError as GeneralError
@@ -191,8 +192,11 @@ class Experiment:
 
 
     def load(self, file_name):
-        """Load his file (also tar gzipped files)"""
-        self.hisfile = hisfile.HisFile(file_name)
+        """Load his file (also tar gzipped files) or xml file"""
+        if file_name.find('.xml') > 0:
+            self.hisfile = xmlfile.XmlFile(file_name)
+        else:
+            self.hisfile = hisfile.HisFile(file_name)
 
 
     @property

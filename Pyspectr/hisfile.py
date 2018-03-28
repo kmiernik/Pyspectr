@@ -40,6 +40,7 @@ class HisFile:
             self.load(file_name)
             self.exists = True
         else:
+            print('Histogram file', file_name, 'not found')
             self.exists = False
 
 

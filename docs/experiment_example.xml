@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<spectra>
+    <data_file name="kurczak0001.lst" id="1" header="10" columns="1"
+        comments="#" /> 
+    <data_file name="kurczak0002.lst" id="2" header="10" columns="1"
+        comments="#" /> 
+    <data_file name="eu152.lst" id="100" header="10" columns="2"
+        comments="#" /> 
+</spectra>
