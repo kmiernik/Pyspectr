@@ -48,6 +48,33 @@ class XmlFile:
         """
         self.histograms = {}
         self.load(file_name)
+        self.rounding = rounding
+
+
+    @property
+    def rounding(self):
+        """Return rounding method
+
+        """
+        return self._rounding
+
+
+    @rounding.setter
+    def rounding(self, method):
+        """Set method of rounding of axis values (down, middle or up)
+
+        """
+        if method == 'low':
+            self._dx = 0
+        elif method == 'mid':
+            self._dx = 0.5
+        elif method == 'high':
+            self._dx = 1.0
+        else:
+            raise GeneralError('Unknown round method {}'.format(method))
+        self._rounding = method
+
+
 
 
     def load(self, file_name):
@@ -111,7 +138,7 @@ class XmlFile:
                 except ValueError:
                     raise GeneralError('Error loading data point, line {} file {}'.format(line_number,  histogram['file_name']))
                 weights.append(data_point)
-                x_axis.append(data_number)
+                x_axis.append(data_number + self._dx)
                 data_number += 1
             elif histogram['columns'] == 2:
                 line = line.split()

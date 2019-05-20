@@ -174,7 +174,7 @@ class Experiment:
     _mode = 1
 
 
-    def __init__(self, file_name, size=11):
+    def __init__(self, file_name, size=11, rounding='mid'):
         """Initialize, open data file (his) and open plot window
         (size parameter decides on plot dimensions)
 
@@ -182,6 +182,7 @@ class Experiment:
         self.file_name = file_name
         # The current (active) file
         self.hisfile = None
+        self.rounding = rounding
         self.load(file_name)
 
         # Peaks for fitting
@@ -194,9 +195,9 @@ class Experiment:
     def load(self, file_name):
         """Load his file (also tar gzipped files) or xml file"""
         if file_name.find('.xml') > 0:
-            self.hisfile = xmlfile.XmlFile(file_name)
+            self.hisfile = xmlfile.XmlFile(file_name, self.rounding)
         else:
-            self.hisfile = hisfile.HisFile(file_name)
+            self.hisfile = hisfile.HisFile(file_name, self.rounding)
 
 
     @property
